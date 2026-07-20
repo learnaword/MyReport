@@ -1,0 +1,42 @@
+---
+description: MyReport 项目架构与目录长期上下文（始终应用）
+alwaysApply: true
+---
+
+# MyReport 项目记忆
+
+Word 报告生成单体：Java 8 + Spring Boot 2.7.18（JAR）+ Spire.Doc / POI。  
+对外 REST（当前 `POST /report/createReport`）；异步生成 `.docx`，Redis（Jedis）回写进度与锁。默认端口 **9091**。
+
+## 包目录（`com.myreport`）
+
+- `controller/` — REST 入口
+- `vo/` — 请求体（如 `CreateReportVO`）
+- `util/word/` — 报告主流程（`SpireReportUtil`）
+- `util/word/common/` — 模板、文本、坐标、高度、异常收集
+- `util/word/common/table/` — 表格（Spire / POI）
+- `util/` — `Constant`、`FileUtil`
+- `framework/redis/` — Jedis 池、`RedisTemplate`、文件进度
+- `framework/jpa/` — Entity / Repository 扫描配置
+- `entity/` `repository/` — JPA 占位（待填）
+
+## 关键入口
+
+| 场景 | 文件 |
+|------|------|
+| 启动类 | `ReportApplication.java` |
+| 创建报告 API | `controller/ReportController.java` |
+| 报告生成 | `util/word/SpireReportUtil.java` |
+| Redis Key / 进度 | `util/Constant.java`、`framework/redis/RedisFileStateUtil.java` |
+| 配置 | `application.yml` + `.env.example` |
+| Word 模板 | `src/main/resources/template/` |
+| Spire 本地包 | `lib/spire.doc-11.1.1.jar` |
+
+## 硬约束
+
+- 编译目标 **Java 8**，勿用 9+ 语法
+- Spire 为 `system` 依赖，改版本须同步 `lib/` 与 `pom.xml`；打包需 `includeSystemScope`
+- 报告生成在后台线程；失败须清理 lock / 更新进度（对齐现有 `catch`）
+- 密钥与 DB/Redis 走环境变量；勿提交真实 `.env`
+- 改架构 / 对外 API 前：先更新 `docs/`（或 `AGENTS.md`），再改代码
+- 详细上下文：根目录 `AGENTS.md`
