@@ -6,21 +6,19 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
-
 /**
  * Redis 连接配置，基于 Jedis 连接池。
+ * <p>
+ * 优先读取环境变量（与 application.yml / .env 一致）：
+ * REDIS_HOST、REDIS_PORT、REDIS_PASSWORD、REDIS_DB
  */
 public class RedisConfig {
 
     private static final Logger logger = Logger.getLogger(RedisConfig.class);
-    private static final String CONFIG_FILE = "redis.properties";
 
     private static volatile RedisConfig instance;
 
-    private String host = "127.0.0.1";
+    private String host = "localhost";
     private int port = 6379;
     private String password;
     private int database = 0;
@@ -33,7 +31,7 @@ public class RedisConfig {
     private JedisPool jedisPool;
 
     private RedisConfig() {
-        loadProperties();
+        loadFromEnv();
         initPool();
     }
 
@@ -48,38 +46,25 @@ public class RedisConfig {
         return instance;
     }
 
-    private void loadProperties() {
-        Properties props = new Properties();
-        InputStream in = null;
+    private void loadFromEnv() {
+        host = firstNonBlank(System.getenv("REDIS_HOST"), host);
+        port = parseInt(System.getenv("REDIS_PORT"), port);
+        password = firstNonBlank(System.getenv("REDIS_PASSWORD"), password);
+        database = parseInt(System.getenv("REDIS_DB"), database);
+    }
+
+    private static String firstNonBlank(String value, String defaultValue) {
+        return StringUtils.isNotBlank(value) ? value.trim() : defaultValue;
+    }
+
+    private static int parseInt(String value, int defaultValue) {
+        if (StringUtils.isBlank(value)) {
+            return defaultValue;
+        }
         try {
-            in = Thread.currentThread().getContextClassLoader().getResourceAsStream(CONFIG_FILE);
-            if (in == null) {
-                in = RedisConfig.class.getClassLoader().getResourceAsStream(CONFIG_FILE);
-            }
-            if (in != null) {
-                props.load(in);
-                host = props.getProperty("redis.host", host);
-                port = Integer.parseInt(props.getProperty("redis.port", String.valueOf(port)));
-                password = props.getProperty("redis.password", password);
-                database = Integer.parseInt(props.getProperty("redis.database", String.valueOf(database)));
-                timeout = Integer.parseInt(props.getProperty("redis.timeout", String.valueOf(timeout)));
-                maxTotal = Integer.parseInt(props.getProperty("redis.pool.maxTotal", String.valueOf(maxTotal)));
-                maxIdle = Integer.parseInt(props.getProperty("redis.pool.maxIdle", String.valueOf(maxIdle)));
-                minIdle = Integer.parseInt(props.getProperty("redis.pool.minIdle", String.valueOf(minIdle)));
-                maxWaitMillis = Long.parseLong(props.getProperty("redis.pool.maxWaitMillis", String.valueOf(maxWaitMillis)));
-            } else {
-                logger.warn("redis.properties not found, using default Redis config");
-            }
-        } catch (Exception e) {
-            logger.error("Failed to load redis.properties, using defaults", e);
-        } finally {
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (IOException ignored) {
-                    // ignore
-                }
-            }
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return defaultValue;
         }
     }
 

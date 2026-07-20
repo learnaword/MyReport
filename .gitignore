@@ -10,3 +10,4 @@ target/
 *.war
 *.log
 .DS_Store
+.env
