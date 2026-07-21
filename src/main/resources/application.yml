@@ -36,3 +36,9 @@ spring:
 # 模版封面/底图上传目录（其下会建 report-template/{id}/）
 myreport:
   template-upload-dir: ${REPORT_TEMPLATE_UPLOAD_DIR:}
+  ai:
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:}
+      model: ${DASHSCOPE_MODEL:qwen-plus}
+    chart-analyst:
+      enabled: ${CHART_ANALYST_ENABLED:true}

@@ -74,7 +74,6 @@ public class SpireReportUtil {
             document.saveToFile(tempFilePath);
             document.dispose();
             WordUtil.reword(tempFilePath, finalFilePath, overallSetting);
-            //上传到OSS
             RedisFileStateUtil.fileUpdateProgress(strDownloaderKey, TimeUtil.getReportCreateTime(), TimeUtil.getConsumeTime(overallSetting), 0, "", 2);
             com.myreport.service.ManagedReportGenerateSync.onSuccess(reportId, finalFilePath);
         } catch (Exception e) {
@@ -233,8 +232,9 @@ public class SpireReportUtil {
      */
     private static void insertData(Section section, JSONObject itemJson, JSONObject overallSetting, Map<String, Integer> countMap, int passage) {
         String strDownloaderKey = overallSetting.getString("strDownloaderKey");
-        JSONObject chartData = JSONObject.parseObject(itemJson.getString("strData"));
-        insertChartText(section, chartData, overallSetting);
+        String strData = itemJson.getString("strData");
+        JSONObject chartData = JSONObject.parseObject(strData);
+        insertChartText(section, chartData, strData, overallSetting);
         //设置标题前缀
         setTitlePre(itemJson, overallSetting, countMap, passage);
         TemplateUtil.insertChartOrTable(section, itemJson, chartData, overallSetting);
@@ -242,14 +242,15 @@ public class SpireReportUtil {
     }
 
     /**
-     * 插入图表文本
+     * 插入图表文本：优先由统计分析师 Agent（qwen-plus）基于 strData 生成，失败则回退 strText。
      */
-    private static void insertChartText(Section section, JSONObject dataObject, JSONObject overallSetting) {
-        String strText;
-        strText = dataObject.getString("strText");
-        //插入文本
-        if (StringUtils.isNotBlank(strText) && !strText.trim().equals("")) {
-            insertParagraph(section, strText, Color.BLACK, overallSetting);
+    private static void insertChartText(Section section, JSONObject dataObject, String strData, JSONObject overallSetting) {
+        String strText = com.myreport.service.ChartStatAnalystAgent.analyze(strData);
+        if (StringUtils.isBlank(strText) && dataObject != null) {
+            strText = dataObject.getString("strText");
+        }
+        if (StringUtils.isNotBlank(strText)) {
+            insertParagraph(section, strText.trim(), Color.BLACK, overallSetting);
         }
     }
 
@@ -683,35 +684,6 @@ public class SpireReportUtil {
     }
 
     /**
-     * 添加图片
-     */
-    public static void addImage(Section section, JSONObject imageObject, JSONObject overallSetting, String text) throws IOException {
-        String imagePath = imageObject.getString("strUrl");
-        String strTitle = imageObject.getString("strTitle");
-
-        Paragraph para = section.addParagraph();
-        para.getFormat().setHorizontalAlignment(HorizontalAlignment.Center);
-        para.applyStyle("报告正文无缩进");
-
-        try (InputStream imgStream = getImageInputStream(imagePath)) {
-            DocPicture picture = para.appendPicture(imgStream);
-            picture.setTextWrappingType(TextWrappingType.Both);
-            picture.setVerticalOrigin(VerticalOrigin.Top_Margin_Area);
-            picture.setHorizontalAlignment(ShapeHorizontalAlignment.Center);
-            Float imgWidthPx = picture.getWidth();
-            int pageWidth = WordContant.IMAGE_FULL_WIDTH;
-            float ratio = (float) pageWidth / imgWidthPx;
-            int imgHeightPx = (int) (picture.getHeight() * ratio);
-            picture.setWidth(pageWidth);
-            picture.setHeight(imgHeightPx);
-        } catch (Exception e) {
-            ExceptionUtil.collectProcessInformation(overallSetting, e, text);
-            return;
-        }
-        WordUtil.setTitle(section, strTitle, overallSetting);
-    }
-
-    /**
      * 添加目录图片
      */
     public static void addTableOfContentsImage(Section section, JSONObject overallSetting, String text) {
@@ -738,59 +710,7 @@ public class SpireReportUtil {
             picture.setHeight(imgHeightPx);
         } catch (Exception e) {
             ExceptionUtil.collectProcessInformation(overallSetting, e, text);
-            return;
         }
-    }
-
-    /**
-     * 插入浮动图片
-     */
-    public static Integer addFloatImage(Section section, String imgPath, JSONObject overallSetting, String text) {
-        try (InputStream imgStream = getImageInputStream(imgPath)) {
-            Paragraph paragraph = section.addParagraph();
-            // 添加图片对象
-            DocPicture picture = paragraph.appendPicture(imgStream);
-            // 设置为浮动图片
-            picture.setTextWrappingStyle(TextWrappingStyle.None);
-            picture.setHorizontalOrigin(HorizontalOrigin.Margin);
-            picture.setVerticalOrigin(VerticalOrigin.Margin);
-            // 设置偏移位置（单位为 point）
-            picture.setHorizontalPosition(0);
-            picture.setVerticalPosition(0);
-            int pageWidth = WordContant.IMAGE_FULL_WIDTH;
-            Float imgWidthPx = picture.getWidth();
-            float ratio = (float) pageWidth / imgWidthPx;
-            int imgHeightPx = (int) (picture.getHeight() * ratio);
-            picture.setWidth(pageWidth);
-            picture.setHeight(imgHeightPx);
-            return imgHeightPx;
-        } catch (Exception e) {
-            ExceptionUtil.collectProcessInformation(overallSetting, e, text);
-            return 0;
-        }
-    }
-
-    /**
-     * 获取数据集
-     */
-    private static Map<Integer, JSONObject> getDatasetMap(JSONObject overallSetting) {
-        JSONArray datasetArr = overallSetting == null ? null : overallSetting.getJSONArray("dataSetConfigList");
-        Map<Integer, JSONObject> datasetMap = new HashMap<>();
-        if (datasetArr != null) {
-            for (int i = 0; i < datasetArr.size(); i++) {
-                JSONObject datasetObject = datasetArr.getJSONObject(i);
-                if (datasetObject == null) {
-                    continue;
-                }
-                Integer nType = datasetObject.getInteger("nType");
-                if (nType != null) {
-                    datasetMap.put(nType, datasetObject);
-                }
-            }
-        }
-        //默认添加静态指标数据集
-        datasetMap.put(0, new JSONObject());
-        return datasetMap;
     }
 
     /**
@@ -829,59 +749,11 @@ public class SpireReportUtil {
     }
 
     /**
-     * 检验客观指标json
-     */
-    private static boolean validateItemJson(Section section, JSONObject itemJson, JSONObject overallSetting) {
-        String strTransName = itemJson.getString("strServiceTransName");
-        String strServiceName = itemJson.getString("strServiceName");
-        if (StringUtils.isEmpty(strServiceName) && StringUtils.isEmpty(strTransName)) {
-            String strName = itemJson.getString("strName");
-            ExceptionUtil.warning(section, "指标（" + strName + "）没有配置strServiceName和strTransName");
-            ExceptionUtil.collectProcessInformation(overallSetting, "指标（" + strName + "）没有配置strServiceName和strTransName");
-            return false;
-        }
-        if (StringUtils.isEmpty(strServiceName)) {
-            String strName = itemJson.getString("strName");
-            ExceptionUtil.warning(section, "指标（" + strName + "）没有配置strServiceName");
-            ExceptionUtil.collectProcessInformation(overallSetting, "指标（" + strName + "）没有配置strServiceName");
-            return false;
-        }
-        if (StringUtils.isEmpty(strTransName)) {
-            String strName = itemJson.getString("strName");
-            ExceptionUtil.warning(section, "指标（" + strName + "）没有配置strTransName");
-            ExceptionUtil.collectProcessInformation(overallSetting, "指标（" + strName + "）没有配置strServiceName");
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
      * 生成报告数量减去1
      */
     public static void decrReportCreateCount() {
         String serverId = "1";
         String redisRunningCountKey = String.format(Constant.RedisKey.REPORT_CREATE_EXECUTOR_COUNT, Integer.parseInt(serverId));
         RedisTemplate.decr(redisRunningCountKey);
-    }
-
-    /**
-     * 根据ossurl获取文件名称
-     */
-    private static String getFileNameByOssurl(String ossUrl) {
-        String urlWithoutPrefix = ossUrl.replaceFirst("^OSSURL:", "");
-        String fileName = urlWithoutPrefix.substring(urlWithoutPrefix.lastIndexOf("/") + 1);
-        return fileName;
-    }
-
-    /**
-     * 获取数据集类型
-     */
-    private static Integer getDataSetType(JSONObject itemJson) {
-        Integer nType = itemJson.getInteger("nType");
-        if (nType == 999) {
-            nType = itemJson.getInteger("nDatasetType");
-        }
-        return nType;
     }
 }
