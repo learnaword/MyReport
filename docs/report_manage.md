@@ -15,6 +15,7 @@
 | POST | /managed-report/update | 更新报告 |
 | POST | /managed-report/delete | 软删报告（并尽力删除已生成文件） |
 | POST | /managed-report/generate | 按模版聚合指标并异步生成 Word |
+| GET | /managed-report/download | 按报告 ID 下载 `.docx` |
 
 响应风格：`code`（0 成功 / -1 失败）+ `message`。
 
@@ -86,6 +87,17 @@
 - 终态回写库表：`generateStatus`、`filePath`（成功）或 `failMessage`（失败）
 
 流程：读模版树 → 按学校就业数据对 METRIC 做 COUNT/PERCENT → 组装静态指标 `reportJsonArr` → `SpireReportUtil.createReport`。
+
+### GET /managed-report/download
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| id | Long | 是 | 报告实例 ID |
+
+**成功：** `.docx` 文件流（`Content-Disposition` 附件；文件名优先为报告名称）。  
+**失败：** HTTP 400 + `{ "code": -1, "message": "..." }`。
+
+规则与示例见 `docs/report_download.md`。列表项含 `canDownload`。
 
 ## 调用方修改点
 

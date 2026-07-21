@@ -48,17 +48,14 @@ public class TemplateUtil {
     /**
      * 添加图表
      */
-    public static void insertChartOrTable(Section section, JSONObject showItem, JSONObject dataObject, JSONObject overallSetting) {
-        Integer nType = showItem.getIntValue("strType");
-        switch (nType) {
-            case 0:
-                insertImage(section, showItem, dataObject, overallSetting);
+    public static void insertChartOrTable(Section section, JSONObject itemJson, JSONObject dataObject, JSONObject overallSetting) {
+        String disPlayType = itemJson.getString("displayType");
+        switch (disPlayType) {
+            case "TABLE":
+                createTable(section, itemJson, dataObject, overallSetting);
                 break;
-            case 1:
-                createTable(section, showItem, dataObject, overallSetting);
-                break;
-            case 2:
-                insertTempalteChart(section, showItem, dataObject, overallSetting);
+            case "CHART":
+                insertTempalteChart(section, itemJson, dataObject, overallSetting);
                 break;
         }
     }
@@ -165,8 +162,19 @@ public class TemplateUtil {
         JSONArray dataArr = dataObject.getJSONArray("chartDataList");
         String strTitle = dataObject.containsKey("title") ? dataObject.getString("title") : "";
         overallSetting.put("insertChartTitle", strTitle);
+        setChartexample(showItem);
         doInsertTempalteChart(section, showItem, dataArr, overallSetting);
         WordUtil.setTitle(section, dataObject, overallSetting);
+    }
+    private static void setChartexample(JSONObject showItem) {
+        String chartStyle = showItem.getString("chartStyle");
+        if(chartStyle.equals("PIE")){
+            showItem.put("lChartexample", 37);
+        }else if(chartStyle.equals("BAR")){
+            showItem.put("lChartexample", 23);
+        }else{
+            showItem.put("lChartexample", 3);
+        }
     }
 
     /**
@@ -640,6 +648,17 @@ public class TemplateUtil {
      * 获取图片InputStream
      */
     public static InputStream getImageInputStream(String imagePath) throws IOException {
+        if (StringUtils.isBlank(imagePath)) {
+            throw new IOException("image path empty");
+        }
+        File managed = com.myreport.config.ReportTemplateUploadConfig.resolveManagedImageFile(imagePath);
+        if (managed != null) {
+            if (!managed.isFile()) {
+                throw new IOException("managed image not found: " + managed.getAbsolutePath()
+                        + " (ref=" + imagePath + ")");
+            }
+            return new FileInputStream(managed);
+        }
         if (imagePath.startsWith("http")) {
             URL url = new URL(encodeChineseInUrl(imagePath));
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -702,7 +721,7 @@ public class TemplateUtil {
         //获取图的配置信息
         String templateJson = WordContant.relationshipMap.get(lChartexample);
         JSONObject temlateObject = JSONObject.parseObject(templateJson);
-        String templateFileName = temlateObject.getString("template");
+        String templateFileName = temlateObject.getString("word/template");
         JSONArray templateConfig = temlateObject.getJSONArray("config");
         Integer chartType = temlateObject.getInteger("type");
         String templateName = temlateObject.getString("name");

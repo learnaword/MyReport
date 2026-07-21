@@ -131,6 +131,13 @@ public class MetricAggregateService {
             headRow.add("数据");
             headList.add(headRow);
 
+            // 与 tableList 同结构，首行放表头（headList[0]）
+            JSONArray chartDataList = new JSONArray();
+            chartDataList.add(headRow);
+            for (int i = 0; i < tableList.size(); i++) {
+                chartDataList.add(tableList.getJSONArray(i));
+            }
+
             String intro = parentIntroByMetricId == null ? "" : parentIntroByMetricId.get(nodeId);
             if (intro == null) {
                 intro = "";
@@ -140,7 +147,7 @@ public class MetricAggregateService {
             data.put("strText", intro);
             data.put("strText2", "");
             data.put("headList", headList);
-            data.put("chartDataList", new JSONArray());
+            data.put("chartDataList", chartDataList);
             data.put("tableList", tableList);
             data.put("cellHeadList", new JSONArray());
             data.put("title", name);

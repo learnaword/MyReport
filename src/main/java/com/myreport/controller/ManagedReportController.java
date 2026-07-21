@@ -3,7 +3,12 @@ package com.myreport.controller;
 import com.myreport.entity.ManagedReport;
 import com.myreport.service.ManagedReportService;
 import org.apache.log4j.Logger;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,6 +17,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -177,6 +185,55 @@ public class ManagedReportController {
             result.put("message", "提交生成失败");
         }
         return result;
+    }
+
+    /**
+     * 按报告实例 ID 下载最近一次可下载的 .docx（成功稿；失败时若仍有旧文件也可下）。
+     */
+    @GetMapping("/download")
+    public ResponseEntity<?> download(@RequestParam("id") Long id) {
+        try {
+            ManagedReportService.DownloadPayload payload = managedReportService.prepareDownload(id);
+            Resource body = new FileSystemResource(payload.getFile());
+            String disposition = buildContentDisposition(payload.getFileName());
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                    .contentType(MediaType.parseMediaType(
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                    .contentLength(payload.getFile().length())
+                    .body(body);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> result = new HashMap<String, Object>();
+            result.put("code", -1);
+            result.put("message", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(result);
+        } catch (Exception e) {
+            logger.error("managed-report download failed, id=" + id, e);
+            Map<String, Object> result = new HashMap<String, Object>();
+            result.put("code", -1);
+            result.put("message", "下载失败");
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(result);
+        }
+    }
+
+    private static String buildContentDisposition(String fileName) {
+        String safe = fileName == null ? "report.docx" : fileName;
+        String encoded;
+        try {
+            encoded = URLEncoder.encode(safe, StandardCharsets.UTF_8.name()).replace("+", "%20");
+        } catch (UnsupportedEncodingException e) {
+            encoded = "report.docx";
+        }
+        // ASCII fallback + RFC 5987
+        String ascii = safe.replaceAll("[^\\x20-\\x7E]", "_");
+        if (ascii.trim().isEmpty()) {
+            ascii = "report.docx";
+        }
+        return "attachment; filename=\"" + ascii + "\"; filename*=UTF-8''" + encoded;
     }
 
     private static Long toLong(Object v) {

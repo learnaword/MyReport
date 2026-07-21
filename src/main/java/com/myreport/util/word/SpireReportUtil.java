@@ -40,21 +40,6 @@ public class SpireReportUtil {
             overallSetting.put("strBasePathPre", "report");
             //创建临时文件夹
             makeTempAndReportDir(overallSetting);
-            //设置客观全局届次配置
-            String strFiltrateColList = overallSetting.containsKey("strGlobalFiltrateColList") ? overallSetting.getString("strGlobalFiltrateColList") : "";
-            if (StringUtils.isNotBlank(strFiltrateColList)) {
-                JSONObject globalFiltrateColList = JSONObject.parseObject(strFiltrateColList);
-                if (globalFiltrateColList != null) {
-                    JSONObject ObjectiveFiltrateColList = globalFiltrateColList.getJSONObject("strObjectiveFiltrateColList");
-                    if (ObjectiveFiltrateColList != null) {
-                        JSONArray graduationYearList = ObjectiveFiltrateColList.containsKey("strGraduationYear")
-                                ? ObjectiveFiltrateColList.getJSONArray("strGraduationYear") : new JSONArray();
-                        if (graduationYearList != null && !graduationYearList.isEmpty()) {
-                            overallSetting.put("strGraduationYear", graduationYearList.toJSONString());
-                        }
-                    }
-                }
-            }
             new Thread(() -> createSingleReport(reportJsonArr, overallSetting, createReportVO)).start();
         } catch (Exception e) {
             ExceptionUtil.collectProcessInformation(overallSetting, e, "word生成");
@@ -128,13 +113,11 @@ public class SpireReportUtil {
      */
     private static void addConverImage(Document document, JSONObject overallSetting) {
         String strCoverImg = overallSetting.getString("strCoverImg");
-        String strCoverText = overallSetting.getString("strCoverText");
-        if (StringUtils.isEmpty(strCoverImg) && StringUtils.isEmpty(strCoverText)) {
+        if (StringUtils.isEmpty(strCoverImg)) {
             return;
         }
         //分节
         Section section = document.getLastSection();
-        WordUtil.insertTextbox(section, overallSetting);
         insertFloatingImage(section, strCoverImg, overallSetting, "封面");
     }
 
@@ -173,7 +156,6 @@ public class SpireReportUtil {
      * @param level          当前标题层级（1=一级标题，2=二级...）
      */
     private static void processNodeArray(Section contentSection, JSONArray nodeArray, JSONObject overallSetting, int level, CreateReportVO createReportVO) {
-        Map<Integer, JSONObject> datasetMap = getDatasetMap(overallSetting);
         for (int i = 0; i < nodeArray.size(); i++) {
             Map<String, Integer> countMap = new HashMap<>();
             countMap.put("chartCount", 0);
@@ -184,23 +166,17 @@ public class SpireReportUtil {
             String strNote = itemJson.getString("strNote");
             String strTips = itemJson.getString("strTips");
             Integer nTreeType = itemJson.getInteger("nTreeType");
-            JSONObject titleImageObject = itemJson.getJSONObject("strImage");
-            String strBackgroundImageUrl = itemJson.getString("strBackgroundImageUrl");
-
-            if (StringUtils.isNotEmpty(strBackgroundImageUrl)) {
-                insertFloatingImage(contentSection, strBackgroundImageUrl, overallSetting, "章节背景图");
-            }
 
             if (nTreeType == 0 && strTitle != null && !strTitle.trim().isEmpty()) {
-                setMultiLevelTitle(contentSection, strTitle, titleImageObject, strTips, level, overallSetting);
+                setMultiLevelTitle(contentSection, strTitle, strTips, level, overallSetting);
             }
 
             if (strContent != null && !strContent.trim().isEmpty()) {
                 insertParagraph(contentSection, strContent, Color.BLACK, overallSetting);
             }
 
-            if (nTreeType == 1 && itemJson.containsKey("strShowList")) {
-                insertShowList(contentSection, itemJson, overallSetting, countMap, datasetMap, i, createReportVO);
+            if (nTreeType == 1) {
+                insertData(contentSection, itemJson, overallSetting, countMap, i);
             }
 
             if (strNote != null && !strNote.trim().isEmpty()) {
@@ -209,7 +185,7 @@ public class SpireReportUtil {
 
             JSONArray childNode = itemJson.getJSONArray("children");
             if (childNode != null && !childNode.isEmpty()) {
-                doChildprocessNodeArray(contentSection, childNode, overallSetting, level + 1, i, countMap, datasetMap, createReportVO);
+                doChildprocessNodeArray(contentSection, childNode, overallSetting, level + 1, i, countMap, createReportVO);
             }
 
             String strBackCoverImage = overallSetting.getString("strBackCoverImg");
@@ -219,26 +195,25 @@ public class SpireReportUtil {
         }
     }
 
-    private static void doChildprocessNodeArray(Section contentSection, JSONArray nodeArray, JSONObject overallSetting, int level, int passage, Map<String, Integer> countMap, Map<Integer, JSONObject> datasetMap, CreateReportVO createReportVO) {
+    private static void doChildprocessNodeArray(Section contentSection, JSONArray nodeArray, JSONObject overallSetting, int level, int passage, Map<String, Integer> countMap, CreateReportVO createReportVO) {
         for (int i = 0; i < nodeArray.size(); i++) {
             JSONObject itemJson = nodeArray.getJSONObject(i);
             String strTitle = itemJson.getString("strTitle");
             String strContent = itemJson.getString("strContent");
             String strNote = itemJson.getString("strNote");
             String strTips = itemJson.getString("strTips");
-            JSONObject titleImageObject = itemJson.getJSONObject("strImage");
             Integer nTreeType = itemJson.getInteger("nTreeType");
 
             if (nTreeType == 0 && strTitle != null && !strTitle.trim().isEmpty()) {
-                setMultiLevelTitle(contentSection, strTitle, titleImageObject, strTips, level, overallSetting);
+                setMultiLevelTitle(contentSection, strTitle, strTips, level, overallSetting);
             }
 
             if (strContent != null && !strContent.trim().isEmpty()) {
                 insertParagraph(contentSection, strContent, Color.BLACK, overallSetting);
             }
 
-            if (nTreeType == 1 && itemJson.containsKey("strShowList")) {
-                insertShowList(contentSection, itemJson, overallSetting, countMap, datasetMap, passage, createReportVO);
+            if (nTreeType == 1) {
+                insertData(contentSection, itemJson, overallSetting, countMap, passage);
             }
 
             if (strNote != null && !strNote.trim().isEmpty()) {
@@ -248,7 +223,7 @@ public class SpireReportUtil {
             // 递归子节点
             JSONArray childNode = itemJson.getJSONArray("children");
             if (childNode != null && !childNode.isEmpty()) {
-                doChildprocessNodeArray(contentSection, childNode, overallSetting, level + 1, passage, countMap, datasetMap, createReportVO);
+                doChildprocessNodeArray(contentSection, childNode, overallSetting, level + 1, passage, countMap, createReportVO);
             }
         }
     }
@@ -256,171 +231,26 @@ public class SpireReportUtil {
     /**
      * 插入图表
      */
-    private static void insertShowList(Section section, JSONObject itemJson, JSONObject overallSetting, Map<String, Integer> countMap, Map<Integer, JSONObject> datasetMap, int passage, CreateReportVO createReportVO) {
-        JSONArray showListArr = itemJson.getJSONArray("strShowList");
-        Integer nType = getDataSetType(itemJson);
-        Map<Integer, JSONObject> dataMap = new HashMap<>();
+    private static void insertData(Section section, JSONObject itemJson, JSONObject overallSetting, Map<String, Integer> countMap, int passage) {
         String strDownloaderKey = overallSetting.getString("strDownloaderKey");
-        Integer chartSize = getChartDataAndSize(section, itemJson, dataMap, datasetMap, overallSetting, createReportVO);
-        for (int j = 0; j < chartSize; j++) {
-            JSONObject dataObject = dataMap.get(0);
-            insertChartText(section, dataObject, j, overallSetting);
-            for (int k = 0; k < showListArr.size(); k++) {
-                dataObject = dataMap.get(k);
-                JSONObject showItem = showListArr.getJSONObject(k);
-                //表是否隐藏
-                Boolean bShow = showItem.containsKey("bShow") ? showItem.getBooleanValue("bShow") : true;
-                //是否是主表
-                Boolean bParent = showItem.containsKey("bPreant") ? showItem.getBooleanValue("bPreant") : true;
-                JSONObject datasetObject = datasetMap.get(nType);
-                Long lDataSetId = datasetObject.getLong("lDataSetId");
-                JSONObject chartData = dataObject.containsKey("nType") ? dataObject.getJSONArray("tableHandleCompletedList").getJSONObject(j) : dataObject;
-                if (bShow) {
-                    //设置标题前缀
-                    setTitlePre(showItem, nType, overallSetting, countMap, passage, lDataSetId);
-                    TemplateUtil.insertChartOrTable(section, showItem, chartData, overallSetting);
-                }
-                //只有主表才显示备注
-                if (bParent) {
-                    insertNote(section, nType, showItem, chartData, overallSetting);
-                }
-            }
-        }
+        JSONObject chartData = JSONObject.parseObject(itemJson.getString("strData"));
+        insertChartText(section, chartData, overallSetting);
+        //设置标题前缀
+        setTitlePre(itemJson, overallSetting, countMap, passage);
+        TemplateUtil.insertChartOrTable(section, itemJson, chartData, overallSetting);
         RedisFileStateUtil.fileUpdateProgress(strDownloaderKey, "", "", 1, "", 1);
-    }
-
-    /**
-     * 插入备注
-     */
-    private static void insertNote(Section section, Integer nType, JSONObject showItem, JSONObject dataObject, JSONObject overallSetting) {
-        Integer chatTypeType = showItem.getIntValue("strType");
-        //图片类型不添加备注，客观不走这个备注
-        if (chatTypeType == 0) {
-            return;
-        }
-        String strNote = dataObject.containsKey("strText2") ? dataObject.getString("strText2") : "";
-        String strErrorText2 = dataObject.containsKey("strErrorText2") ? dataObject.getString("strErrorText2") : "";
-        String strTitle = dataObject.containsKey("title") ? dataObject.getString("title") : "";
-        if (StringUtils.isNotBlank(strNote) && !strNote.trim().equals("")) {
-            insertNote(section, strNote.trim());
-        }
-        if (StringUtils.isNotEmpty(strErrorText2)) {
-            ExceptionUtil.warning(section, "指标（" + strTitle + "）：备注文本：" + strErrorText2);
-            ExceptionUtil.collectProcessInformation(overallSetting, "指标（" + strTitle + "）：备注文本：" + strErrorText2);
-        }
     }
 
     /**
      * 插入图表文本
      */
-    private static void insertChartText(Section section, JSONObject dataObject, int index, JSONObject overallSetting) {
-        String strText, strErrorText, strTitle, strAnonymousSurveyText;
-        //获取文本和错误文本
-        if (dataObject.containsKey("nType")) {
-            JSONObject chartData = dataObject.getJSONArray("tableHandleCompletedList").getJSONObject(index);
-            strTitle = chartData.containsKey("title") ? dataObject.getString("title") : "";
-            strText = chartData.getString("strText");
-            strAnonymousSurveyText = chartData.containsKey("strAnonymousSurveyText") ? chartData.getString("strAnonymousSurveyText") : "";
-            strErrorText = chartData.containsKey("strErrorText") ? chartData.getString("strErrorText") : "";
-        } else {
-            strText = dataObject.getString("strText");
-            strErrorText = dataObject.containsKey("strErrorText") ? dataObject.getString("strErrorText") : "";
-            strTitle = dataObject.containsKey("title") ? dataObject.getString("title") : "";
-            strAnonymousSurveyText = dataObject.containsKey("strAnonymousSurveyText") ? dataObject.getString("strAnonymousSurveyText") : "";
-        }
-        if (StringUtils.isNotEmpty(strAnonymousSurveyText)) {
-            insertParagraph(section, strAnonymousSurveyText, Color.RED, overallSetting);
-        }
+    private static void insertChartText(Section section, JSONObject dataObject, JSONObject overallSetting) {
+        String strText;
+        strText = dataObject.getString("strText");
         //插入文本
         if (StringUtils.isNotBlank(strText) && !strText.trim().equals("")) {
             insertParagraph(section, strText, Color.BLACK, overallSetting);
         }
-        //插入错误文本
-        if (StringUtils.isNotEmpty(strErrorText)) {
-            ExceptionUtil.warning(section, "指标（" + strTitle + "）：文本描述：" + strErrorText);
-            ExceptionUtil.collectProcessInformation(overallSetting, "指标（" + strTitle + "）：文本描述：" + strErrorText);
-        }
-    }
-
-    /**
-     * 获取图表数据
-     */
-    private static Integer getChartDataAndSize(Section section, JSONObject itemJson, Map<Integer, JSONObject> dataMap, Map<Integer, JSONObject> datasetMap, JSONObject overallSetting, CreateReportVO createReportVO) {
-        Integer nType = itemJson.getInteger("nType");
-        Integer chartSize = 0;
-        switch (nType) {
-            case 0:
-                chartSize = getStaticMetricsData(itemJson, dataMap, overallSetting);
-                break;
-            case 1:
-                chartSize = getObjectiveChartDataAndSize(section, itemJson, dataMap, datasetMap, overallSetting, createReportVO);
-                break;
-        }
-        return chartSize;
-    }
-
-    /**
-     * 获取静态图表数据
-     */
-    private static Integer getStaticMetricsData(JSONObject itemJson, Map<Integer, JSONObject> dataMap, JSONObject overallSetting) {
-        if (!itemJson.containsKey("strData")) {
-            ExceptionUtil.collectProcessInformation(overallSetting, "静态指标不存在数据！");
-            return 0;
-        }
-        int chartSize = 1;
-        String strData = itemJson.getString("strData");
-        String strTitle = itemJson.getString("strTitle");
-        JSONObject dataObject = JSONObject.parseObject(strData);
-        if(StringUtils.isNotEmpty(strTitle)){
-            dataObject.put("title", strTitle);
-        }
-        //对静态指标的【届次】替换
-        handleStaticMetricsTableData(dataObject, overallSetting);
-        if (dataObject.containsKey("nType")) {
-            chartSize = dataObject.getJSONArray("tableHandleCompletedList").size();
-        }
-        dataMap.put(0, dataObject);
-        return chartSize;
-    }
-
-    /**
-     * 获取静态表数据进行处理
-     */
-    private static void handleStaticMetricsTableData(JSONObject dataObject, JSONObject overallSetting) {
-        String strNote = dataObject.containsKey("strText2") ? dataObject.getString("strText2") : "";
-        if (StringUtils.isEmpty(strNote) || !strNote.contains("【届次】") || !overallSetting.containsKey("objectiveCommonParams")) {
-            return;
-        }
-        String strGraduateYear = "";
-        //获取客观届次
-        if (overallSetting.containsKey("objectiveCommonParams")) {
-            JSONObject objectiveCommonParams = overallSetting.getJSONObject("objectiveCommonParams");
-            if (objectiveCommonParams.containsKey("strGraduateYear")) {
-                strGraduateYear = objectiveCommonParams.getString("strGraduateYear");
-            }
-        }
-        if (StringUtils.isEmpty(strGraduateYear)) {
-            //获取毕业生调研届次
-            String strResearchTermGroupDataMap = overallSetting.getString("strResearchTermGroupDataMap");
-            if (StringUtils.isEmpty(strResearchTermGroupDataMap)) {
-                strResearchTermGroupDataMap = "{}";
-            }
-            JSONObject ResearchTermGroupDataMap = JSONObject.parseObject(strResearchTermGroupDataMap);
-            String strNType = "'" + 2 + "'";
-            if (ResearchTermGroupDataMap.containsKey(strNType)) {
-                JSONObject researchTermGroupDataItem = ResearchTermGroupDataMap.getJSONObject(strNType);
-                strGraduateYear = researchTermGroupDataItem.containsKey("strGradationText") ? researchTermGroupDataItem.getString("strGradationText") : "";
-            }
-        }
-        strNote = strNote.replaceAll("【届次】", strGraduateYear);
-        dataObject.put("strText2", strNote);
-    }
-
-    /**
-     * 获取客观图表数据
-     */
-    private static Integer getObjectiveChartDataAndSize(Section section, JSONObject itemJson, Map<Integer, JSONObject> dataMap, Map<Integer, JSONObject> datasetMap, JSONObject overallSetting, CreateReportVO createReportVO) {
-        return 0;
     }
 
     /**
@@ -655,33 +485,25 @@ public class SpireReportUtil {
      * @param title          标题内容
      * @param level          标题级别（1 表示一级标题，2 表示二级标题，3 表示三级标题）
      */
-    private static void setMultiLevelTitle(Section contentSection, String title, JSONObject titleImageObject, String strTips, int level, JSONObject overallSetting) {
+    private static void setMultiLevelTitle(Section contentSection, String title, String strTips, int level, JSONObject overallSetting) {
         if (contentSection == null || StringUtils.isEmpty(title)) return;
         if (level == 1) {
-            String imgPath = titleImageObject.getString("strUrl");
-            Integer imageHeight = 0;
-            if (!StringUtils.isEmpty(imgPath)) {
-                imageHeight = addFloatImage(contentSection, imgPath, overallSetting, "一级标题：图：" + title);
-            }
-            doSetMultiLevelTitle(contentSection, title, imageHeight, "报告一级", strTips, level, overallSetting);
+            doSetMultiLevelTitle(contentSection, title, "报告一级", strTips, level, overallSetting);
         } else if (level == 2) {
-            doSetMultiLevelTitle(contentSection, title, 0, "报告二级", strTips, level, overallSetting);
+            doSetMultiLevelTitle(contentSection, title, "报告二级", strTips, level, overallSetting);
         } else if (level == 3) {
-            doSetMultiLevelTitle(contentSection, title, 0, "报告三级", strTips, level, overallSetting);
+            doSetMultiLevelTitle(contentSection, title, "报告三级", strTips, level, overallSetting);
         } else {
-            doSetMultiLevelTitle(contentSection, title, 0, "报告四级", strTips, level, overallSetting);
+            doSetMultiLevelTitle(contentSection, title, "报告四级", strTips, level, overallSetting);
         }
     }
 
     /**
      * 设置多级标题
      */
-    private static void doSetMultiLevelTitle(Section section, String title, Integer imageHeight, String styleName, String strTips, int level, JSONObject overallSetting) {
+    private static void doSetMultiLevelTitle(Section section, String title, String styleName, String strTips, int level, JSONObject overallSetting) {
         Paragraph titleParagraph = section.addParagraph();
         TextRange titleText = titleParagraph.appendText(title);
-        if (imageHeight != 0) {
-            titleParagraph.getFormat().setAfterSpacing(imageHeight - 54);
-        }
         if (level == 1) {
             setMultiLevelTitleBackground(titleParagraph, styleName, overallSetting);
         } else {
@@ -722,75 +544,17 @@ public class SpireReportUtil {
     /**
      * 设置标题前缀
      */
-    private static void setTitlePre(JSONObject showItem, Integer nType, JSONObject overallSetting, Map<String, Integer> countMap, int passage, Long lDataSetId) {
-        Boolean bShow = showItem.containsKey("bShow") ? showItem.getBooleanValue("bShow") : true;
-        Boolean bShowTitle = showItem.containsKey("bShowTitle") ? showItem.getBooleanValue("bShowTitle") : true;
-        if (!bShow || !bShowTitle) {
-            overallSetting.remove("strTitlePre");
-            return;
-        }
-        if (nType == 1) {
-            setObjectiveTitlePre(showItem, overallSetting, countMap, passage, lDataSetId);
-        } else if (nType == 0) {
-            setStaticTitlePre(showItem, overallSetting, countMap, passage);
-        } else {
-            setReaserchTitlePre(showItem, overallSetting, countMap, passage);
-        }
-    }
-
-    /**
-     * 设置调研标题前缀
-     */
-    private static void setReaserchTitlePre(JSONObject showItem, JSONObject overallSetting, Map<String, Integer> countMap, int passage) {
-        Integer nStartIndex = overallSetting.getInteger("nStartIndex");
-        Integer chartType = showItem.getIntValue("strType");
-        if (chartType == 1) {
-            countMap.merge("tableCount", 1, Integer::sum);
-            if (passage >= nStartIndex) {
-                overallSetting.put("strTitlePre", "表" + (passage - nStartIndex + 1) + "-" + countMap.get("tableCount") + "  ");
-            } else {
-                overallSetting.put("strTitlePre", "表" + countMap.get("tableCount") + "  ");
-            }
-        } else {
-            countMap.merge("chartCount", 1, Integer::sum);
-            if (passage >= nStartIndex) {
-                overallSetting.put("strTitlePre", "图" + (passage - nStartIndex + 1) + "-" + countMap.get("chartCount") + "  ");
-            } else {
-                overallSetting.put("strTitlePre", "图" + countMap.get("chartCount") + "  ");
-            }
-        }
-    }
-
-    /**
-     * 设置客观标题前缀
-     */
-    private static void setObjectiveTitlePre(JSONObject showItem, JSONObject overallSetting, Map<String, Integer> countMap, int passage, Long lDataSetId) {
-        Integer nStartIndex = overallSetting.getInteger("nStartIndex");
-        Integer chartType = showItem.getIntValue("strType");
-        if (chartType == 1) {
-            countMap.merge("tableCount", 1, Integer::sum);
-            if (passage >= nStartIndex) {
-                overallSetting.put("strTitlePre", "表" + (passage - nStartIndex + 1) + "-" + countMap.get("tableCount") + "  ");
-            } else {
-                overallSetting.put("strTitlePre", "表" + countMap.get("tableCount") + "  ");
-            }
-        } else {
-            countMap.merge("chartCount", 1, Integer::sum);
-            if (passage >= nStartIndex) {
-                overallSetting.put("strTitlePre", "图" + (passage - nStartIndex + 1) + "-" + countMap.get("chartCount") + "  ");
-            } else {
-                overallSetting.put("strTitlePre", "图" + countMap.get("chartCount") + "  ");
-            }
-        }
+    private static void setTitlePre(JSONObject itemJson, JSONObject overallSetting, Map<String, Integer> countMap, int passage) {
+        setStaticTitlePre(itemJson, overallSetting, countMap, passage);
     }
 
     /**
      * 设置静态指标标题前缀
      */
-    private static void setStaticTitlePre(JSONObject showItem, JSONObject overallSetting, Map<String, Integer> countMap, int passage) {
-        Integer nStartIndex = overallSetting.getInteger("nStartIndex");
-        Integer chartType = showItem.getIntValue("strType");
-        if (chartType == 1) {
+    private static void setStaticTitlePre(JSONObject itemJson, JSONObject overallSetting, Map<String, Integer> countMap, int passage) {
+        Integer nStartIndex = overallSetting.containsKey("nStartIndex") ? overallSetting.getInteger("nStartIndex") : 1;
+        String displayType = itemJson.getString("displayType");
+        if (displayType.equals("TABLE")) {
             countMap.merge("tableCount", 1, Integer::sum);
             if (passage >= nStartIndex) {
                 overallSetting.put("strTitlePre", "表" + (passage - nStartIndex + 1) + "-" + countMap.get("tableCount") + "  ");
@@ -833,6 +597,18 @@ public class SpireReportUtil {
      * 获取图片InputStream
      */
     public static InputStream getImageInputStream(String imagePath) throws IOException {
+        if (StringUtils.isBlank(imagePath)) {
+            throw new IOException("image path empty");
+        }
+        // 模版封面/底图：走上传目录本地读，避免拼错 FileUtil 根路径，也避免对本机 HTTP 自取图失败
+        File managed = com.myreport.config.ReportTemplateUploadConfig.resolveManagedImageFile(imagePath);
+        if (managed != null) {
+            if (!managed.isFile()) {
+                throw new IOException("managed image not found: " + managed.getAbsolutePath()
+                        + " (ref=" + imagePath + ")");
+            }
+            return new FileInputStream(managed);
+        }
         if (imagePath.startsWith("http")) {
             URL url = new URL(encodeChineseInUrl(imagePath));
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();

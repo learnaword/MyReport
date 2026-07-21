@@ -71,6 +71,7 @@ POST /report/createReport
 
 - `POST /managed-report/create`：名称 + 学校 + 模版
 - `POST /managed-report/generate`：读模版树、聚合就业指标、组装 `reportJsonArr` 后触发生成；`reportId` = 实例 id
+- `GET /managed-report/download?id=`：生成成功（或失败仍有旧稿）后下载 `.docx` — 详见 `docs/report_download.md`
 - 管理台：`/admin/index.html#report`
 
 ## Build & Run

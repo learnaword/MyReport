@@ -10,6 +10,7 @@ import com.myreport.repository.ManagedReportRepository;
 import com.myreport.repository.ReportTemplateRepository;
 import com.myreport.repository.SchoolRepository;
 import com.myreport.util.Constant;
+import com.myreport.util.FileUtil;
 import com.myreport.util.word.SpireReportUtil;
 import com.myreport.vo.CreateReportVO;
 import org.apache.commons.lang.StringUtils;
@@ -82,6 +83,7 @@ public class ManagedReportService {
         m.put("lastGenerateTime", r.getLastGenerateTime());
         m.put("createTime", r.getCreateTime());
         m.put("updateTime", r.getUpdateTime());
+        m.put("canDownload", canDownload(r));
         Optional<School> school = schoolRepository.findById(r.getSchoolId());
         m.put("schoolName", school.isPresent() ? school.get().getName() : null);
         Optional<ReportTemplate> tpl = templateRepository.findById(r.getTemplateId());
@@ -91,6 +93,88 @@ public class ManagedReportService {
             m.put("templateName", null);
         }
         return m;
+    }
+
+    /**
+     * 解析可下载文件：仅按报告 ID 取库内登记路径，禁止客户端传路径。
+     */
+    public DownloadPayload prepareDownload(Long id) {
+        ManagedReport r = requireReport(id);
+        Integer st = r.getGenerateStatus();
+        if (st == null
+                || st == ManagedReport.STATUS_DRAFT
+                || st == ManagedReport.STATUS_GENERATING) {
+            throw new IllegalArgumentException("报告尚未生成成功，无法下载");
+        }
+        if (StringUtils.isBlank(r.getFilePath())) {
+            throw new IllegalArgumentException("暂无可下载文件");
+        }
+        // 成功可下；失败但保留上次成功文件时可下旧稿
+        if (st != ManagedReport.STATUS_SUCCESS && st != ManagedReport.STATUS_FAILED) {
+            throw new IllegalArgumentException("当前状态不可下载");
+        }
+
+        File file = new File(r.getFilePath().trim());
+        try {
+            String canonical = file.getCanonicalPath();
+            String base = FileUtil.fileConfig.getPrefixFilePhysicalPath();
+            if (StringUtils.isNotBlank(base)) {
+                String baseCanon = new File(base).getCanonicalPath();
+                if (!canonical.equals(baseCanon)
+                        && !canonical.startsWith(baseCanon + File.separator)) {
+                    logger.warn("download path outside base, id=" + id + ", path=" + canonical);
+                    throw new IllegalArgumentException("文件路径非法");
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.warn("download path check failed, id=" + id, e);
+            throw new IllegalArgumentException("文件不可用");
+        }
+        if (!file.isFile() || !file.exists()) {
+            throw new IllegalArgumentException("文件不存在或已失效，请重新生成");
+        }
+
+        String downloadName = sanitizeFileName(r.getName());
+        if (!downloadName.toLowerCase().endsWith(".docx")) {
+            downloadName = downloadName + ".docx";
+        }
+        return new DownloadPayload(file, downloadName);
+    }
+
+    public static final class DownloadPayload {
+        private final File file;
+        private final String fileName;
+
+        public DownloadPayload(File file, String fileName) {
+            this.file = file;
+            this.fileName = fileName;
+        }
+
+        public File getFile() {
+            return file;
+        }
+
+        public String getFileName() {
+            return fileName;
+        }
+    }
+
+    private static boolean canDownload(ManagedReport r) {
+        if (r == null) {
+            return false;
+        }
+        Integer st = r.getGenerateStatus();
+        if (st == null
+                || st == ManagedReport.STATUS_DRAFT
+                || st == ManagedReport.STATUS_GENERATING) {
+            return false;
+        }
+        if (StringUtils.isBlank(r.getFilePath())) {
+            return false;
+        }
+        return st == ManagedReport.STATUS_SUCCESS || st == ManagedReport.STATUS_FAILED;
     }
 
     public Map<String, Object> detail(Long id) {
@@ -209,9 +293,6 @@ public class ManagedReportService {
             overallSetting.put("strCoverImg", nullToEmpty(template.getCoverImage()));
             overallSetting.put("strBackCoverImg", nullToEmpty(template.getBackCoverImage()));
             overallSetting.put("nMetricsCount", Math.max(assembled.getMetricCount(), 1));
-            overallSetting.put("dataSetConfigList", new JSONArray());
-            overallSetting.put("strGlobalFiltrateColList",
-                    "{\"strObjectiveFiltrateColList\":{}}");
             overallSetting.put("managedReportSync", true);
 
             CreateReportVO vo = new CreateReportVO();

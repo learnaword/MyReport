@@ -151,20 +151,26 @@ public class ReportJsonAssembler {
             String displayType = node.get("displayType") == null
                     ? ReportTemplateNode.DISPLAY_TABLE
                     : String.valueOf(node.get("displayType"));
-            int strType = ReportTemplateNode.DISPLAY_CHART.equalsIgnoreCase(displayType) ? 2 : 1;
+            if (!ReportTemplateNode.DISPLAY_CHART.equalsIgnoreCase(displayType)) {
+                displayType = ReportTemplateNode.DISPLAY_TABLE;
+            } else {
+                displayType = ReportTemplateNode.DISPLAY_CHART;
+            }
 
             JSONObject out = new JSONObject(true);
             out.put("nTreeType", 1);
             out.put("nType", 0);
             out.put("strTitle", name);
             out.put("strData", data.toJSONString());
-            JSONArray showList = new JSONArray();
-            JSONObject showItem = new JSONObject(true);
-            showItem.put("strType", strType);
-            showItem.put("bShow", true);
-            showItem.put("bPreant", true);
-            showList.add(showItem);
-            out.put("strShowList", showList);
+            out.put("displayType", displayType);
+            if (ReportTemplateNode.DISPLAY_CHART.equals(displayType)) {
+                String chartStyle = node.get("chartStyle") == null
+                        ? null
+                        : String.valueOf(node.get("chartStyle"));
+                out.put("chartStyle", chartStyle);
+            } else {
+                out.put("chartStyle", null);
+            }
             out.put("children", new JSONArray());
             return out;
         }
