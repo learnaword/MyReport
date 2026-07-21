@@ -42,17 +42,25 @@ public class SpireReportUtil {
             makeTempAndReportDir(overallSetting);
             //设置客观全局届次配置
             String strFiltrateColList = overallSetting.containsKey("strGlobalFiltrateColList") ? overallSetting.getString("strGlobalFiltrateColList") : "";
-            JSONObject globalFiltrateColList = JSONObject.parseObject(strFiltrateColList);
-            JSONObject ObjectiveFiltrateColList = globalFiltrateColList.getJSONObject("strObjectiveFiltrateColList");
-            JSONArray graduationYearList = ObjectiveFiltrateColList.containsKey("strGraduationYear") ? ObjectiveFiltrateColList.getJSONArray("strGraduationYear") : new JSONArray();
-            if (!graduationYearList.isEmpty()) {
-                overallSetting.put("strGraduationYear", graduationYearList.toJSONString());
+            if (StringUtils.isNotBlank(strFiltrateColList)) {
+                JSONObject globalFiltrateColList = JSONObject.parseObject(strFiltrateColList);
+                if (globalFiltrateColList != null) {
+                    JSONObject ObjectiveFiltrateColList = globalFiltrateColList.getJSONObject("strObjectiveFiltrateColList");
+                    if (ObjectiveFiltrateColList != null) {
+                        JSONArray graduationYearList = ObjectiveFiltrateColList.containsKey("strGraduationYear")
+                                ? ObjectiveFiltrateColList.getJSONArray("strGraduationYear") : new JSONArray();
+                        if (graduationYearList != null && !graduationYearList.isEmpty()) {
+                            overallSetting.put("strGraduationYear", graduationYearList.toJSONString());
+                        }
+                    }
+                }
             }
             new Thread(() -> createSingleReport(reportJsonArr, overallSetting, createReportVO)).start();
         } catch (Exception e) {
             ExceptionUtil.collectProcessInformation(overallSetting, e, "word生成");
             RedisTemplate.delete(String.format(Constant.RedisKey.REPORT_LOCK, reportId));
             RedisFileStateUtil.fileUpdateProgress(strDownloaderKey, TimeUtil.getReportCreateTime(), TimeUtil.getConsumeTime(overallSetting), 0, "", 4);
+            com.myreport.service.ManagedReportGenerateSync.onFailure(reportId, e.getMessage());
         }
     }
 
@@ -83,14 +91,18 @@ public class SpireReportUtil {
             WordUtil.reword(tempFilePath, finalFilePath, overallSetting);
             //上传到OSS
             RedisFileStateUtil.fileUpdateProgress(strDownloaderKey, TimeUtil.getReportCreateTime(), TimeUtil.getConsumeTime(overallSetting), 0, "", 2);
+            com.myreport.service.ManagedReportGenerateSync.onSuccess(reportId, finalFilePath);
         } catch (Exception e) {
             ExceptionUtil.collectProcessInformation(overallSetting, e, "word生成");
             RedisFileStateUtil.fileUpdateProgress(strDownloaderKey, TimeUtil.getReportCreateTime(), TimeUtil.getConsumeTime(overallSetting), 0, "", 4);
+            com.myreport.service.ManagedReportGenerateSync.onFailure(reportId, e.getMessage());
         } finally {
             RedisTemplate.delete(String.format(Constant.RedisKey.REPORT_LOCK, reportId));
             deleteTemFile(mergeFileToken, overallSetting);
             decrReportCreateCount();
-            document.close();
+            if (document != null) {
+                document.close();
+            }
         }
     }
 
@@ -986,12 +998,19 @@ public class SpireReportUtil {
      * 获取数据集
      */
     private static Map<Integer, JSONObject> getDatasetMap(JSONObject overallSetting) {
-        JSONArray datasetArr = overallSetting.getJSONArray("dataSetConfigList");
+        JSONArray datasetArr = overallSetting == null ? null : overallSetting.getJSONArray("dataSetConfigList");
         Map<Integer, JSONObject> datasetMap = new HashMap<>();
-        for (int i = 0; i < datasetArr.size(); i++) {
-            JSONObject datasetObject = datasetArr.getJSONObject(i);
-            Integer nType = datasetObject.getInteger("nType");
-            datasetMap.put(nType, datasetObject);
+        if (datasetArr != null) {
+            for (int i = 0; i < datasetArr.size(); i++) {
+                JSONObject datasetObject = datasetArr.getJSONObject(i);
+                if (datasetObject == null) {
+                    continue;
+                }
+                Integer nType = datasetObject.getInteger("nType");
+                if (nType != null) {
+                    datasetMap.put(nType, datasetObject);
+                }
+            }
         }
         //默认添加静态指标数据集
         datasetMap.put(0, new JSONObject());
@@ -1010,7 +1029,8 @@ public class SpireReportUtil {
      */
     private static void addFileProcess(CreateReportVO createReportVO, String finalFilePath, Integer reportSize, JSONObject overallSetting) {
         String strRedisKey = String.format(Constant.RedisKey.REPORT_LIST, createReportVO.getReportId());
-        int nMetricsCount = overallSetting.getInteger("nMetricsCount") * reportSize;
+        Integer metrics = overallSetting.getInteger("nMetricsCount");
+        int nMetricsCount = (metrics == null ? 1 : metrics) * reportSize;
         RedisFileStateUtil.fileProgress(strRedisKey, finalFilePath, "", 0, nMetricsCount, "", 1);
         overallSetting.put("strDownloaderKey", strRedisKey);
     }
@@ -1064,7 +1084,7 @@ public class SpireReportUtil {
      * 生成报告数量减去1
      */
     public static void decrReportCreateCount() {
-        String serverId = System.getenv("SERVER_ID");
+        String serverId = "1";
         String redisRunningCountKey = String.format(Constant.RedisKey.REPORT_CREATE_EXECUTOR_COUNT, Integer.parseInt(serverId));
         RedisTemplate.decr(redisRunningCountKey);
     }
@@ -1076,27 +1096,6 @@ public class SpireReportUtil {
         String urlWithoutPrefix = ossUrl.replaceFirst("^OSSURL:", "");
         String fileName = urlWithoutPrefix.substring(urlWithoutPrefix.lastIndexOf("/") + 1);
         return fileName;
-    }
-
-    /**
-     * 获取调研学历
-     */
-    private static String getStrResearchDegreeArr(JSONObject itemJson, JSONObject datesetObject) {
-        //指标学历
-        String strDegreeArray = itemJson.getString("strDegreeArray");
-        //指标学历为空
-        if (StringUtils.isEmpty(strDegreeArray)) {
-            //基本信息学历
-            strDegreeArray = datesetObject.containsKey("strDegreeDataList") ? datesetObject.getJSONArray("strDegreeDataList").toJSONString() : null;
-        }
-        //如果指标学历配置是一个空JsonArray，则使用基本信息的学历
-        if (StringUtils.isNotEmpty(strDegreeArray)) {
-            JSONArray itemArr = JSONArray.parseArray(strDegreeArray);
-            if (itemArr == null || itemArr.isEmpty()) {
-                strDegreeArray = datesetObject.containsKey("strDegreeDataList") ? datesetObject.getJSONArray("strDegreeDataList").toJSONString() : null;
-            }
-        }
-        return strDegreeArray == null ? "" : strDegreeArray;
     }
 
     /**

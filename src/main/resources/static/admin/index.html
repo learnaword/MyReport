@@ -1,0 +1,1857 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MyReport 管理台</title>
+  <style>
+    :root {
+      --bg: #eef2f0;
+      --sidebar: #16352b;
+      --sidebar-text: #d7e6df;
+      --sidebar-active: #1f6b4a;
+      --ink: #1a2a24;
+      --muted: #5b6d65;
+      --line: #d0ddd6;
+      --panel: #ffffff;
+      --accent: #1f6b4a;
+      --danger: #9b2c2c;
+      --ok: #1f6b4a;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: "Source Han Sans SC", "Noto Sans SC", "PingFang SC", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      display: flex;
+    }
+    aside {
+      width: 220px;
+      flex-shrink: 0;
+      background: linear-gradient(180deg, #16352b 0%, #0f241d 100%);
+      color: var(--sidebar-text);
+      padding: 1.4rem 0.9rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .brand {
+      padding: 0.4rem 0.7rem 1.2rem;
+      font-size: 1.15rem;
+      font-weight: 650;
+      letter-spacing: 0.04em;
+      color: #fff;
+    }
+    .brand small {
+      display: block;
+      margin-top: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 400;
+      opacity: 0.7;
+    }
+    .nav-btn {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      padding: 0.75rem 0.85rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: background 0.15s ease;
+    }
+    .nav-btn:hover { background: rgba(255,255,255,0.06); }
+    .nav-btn.active { background: var(--sidebar-active); color: #fff; }
+    main {
+      flex: 1;
+      min-width: 0;
+      padding: 1.4rem 1.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1.1rem 1.25rem;
+    }
+    .panel.hidden { display: none; }
+    .head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.9rem;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+    .desc {
+      margin: 0.3rem 0 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+    .file-btn, .ghost-btn, .primary-btn, .select {
+      border: 0;
+      border-radius: 8px;
+      padding: 0.55rem 0.9rem;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+    .select {
+      background: #e8f0eb;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      max-width: 220px;
+    }
+    .primary-btn { background: var(--accent); color: #fff; }
+    .ghost-btn { background: #e8f0eb; color: var(--ink); }
+    .file-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #e8f0eb;
+      color: var(--ink);
+    }
+    .file-btn input { display: none; }
+    .msg { font-size: 0.86rem; min-height: 1.2rem; }
+    .msg.ok { color: var(--ok); }
+    .msg.err { color: var(--danger); }
+    .progress-wrap {
+      display: none;
+      margin: 0.35rem 0 0.75rem;
+      max-width: 420px;
+    }
+    .progress-wrap.visible { display: block; }
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.35rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .progress-track {
+      height: 8px;
+      border-radius: 999px;
+      background: #e2ebe6;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #1f6b4a, #2f9b6a);
+      transition: width 0.15s ease;
+    }
+    .progress-bar.indeterminate {
+      width: 35% !important;
+      animation: progress-indeterminate 1.1s ease-in-out infinite;
+    }
+    @keyframes progress-indeterminate {
+      0% { transform: translateX(-120%); }
+      100% { transform: translateX(320%); }
+    }
+    .primary-btn:disabled, .file-btn.disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      max-height: calc(100vh - 240px);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+    th, td {
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      white-space: nowrap;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      background: #f4f8f6;
+      z-index: 1;
+      font-weight: 600;
+    }
+    tr:hover td { background: #f8fbf9; }
+    .pager {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      margin-top: 0.85rem;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .pager .btns { display: flex; gap: 0.45rem; }
+    .empty {
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+    }
+    .tree {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.6rem;
+      max-height: calc(100vh - 280px);
+      overflow: auto;
+      background: #f8fbf9;
+    }
+    .tree-node {
+      margin: 0.15rem 0;
+      padding: 0.35rem 0.5rem;
+      border-radius: 6px;
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+    .tree-node .row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+    .tree-node .tag {
+      font-size: 0.72rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      background: #e8f0eb;
+      color: var(--muted);
+    }
+    .tree-node .tag.metric { background: #e8eef8; color: #2a4a7a; }
+    .tree-node .name { font-weight: 600; font-size: 0.9rem; }
+    .tree-node .acts { margin-left: auto; display: flex; gap: 0.3rem; flex-wrap: wrap; }
+    .tree-node .acts button {
+      border: 0;
+      background: #e8f0eb;
+      border-radius: 6px;
+      padding: 0.25rem 0.45rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .tree-children { margin-left: 1.1rem; margin-top: 0.25rem; }
+    .editor-bar {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+      align-items: center;
+    }
+    .modal-mask {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 35, 28, 0.35);
+      z-index: 20;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-mask.show { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.1rem 1.2rem;
+      width: min(480px, 100%);
+      border: 1px solid var(--line);
+    }
+    .modal.modal-lg {
+      width: min(900px, 100%);
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal.modal-lg .tree {
+      max-height: min(58vh, 520px);
+      flex: 1;
+    }
+    .modal-mask.form-layer { z-index: 30; }
+    .modal h3 { margin: 0 0 0.8rem; font-size: 1.05rem; }
+    .form-row { margin-bottom: 0.7rem; }
+    .form-row label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 0.25rem; }
+    .form-row input, .form-row select, .form-row textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.5rem 0.65rem;
+      font: inherit;
+    }
+    .form-row textarea { min-height: 72px; resize: vertical; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.9rem; }
+    .danger-btn { background: #f5e4e4; color: var(--danger); border: 0; border-radius: 8px; padding: 0.55rem 0.9rem; cursor: pointer; }
+    @media (max-width: 800px) {
+      body { flex-direction: column; }
+      aside { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; }
+      .brand { width: 100%; padding-bottom: 0.4rem; }
+      .table-wrap { max-height: 55vh; }
+    }
+  </style>
+</head>
+<body>
+  <aside>
+    <div class="brand">
+      MyReport
+      <small>数据管理台</small>
+    </div>
+    <button type="button" class="nav-btn active" data-panel="school">学校管理</button>
+    <button type="button" class="nav-btn" data-panel="data">数据管理</button>
+    <button type="button" class="nav-btn" data-panel="template">模版管理</button>
+    <button type="button" class="nav-btn" data-panel="report">报告管理</button>
+  </aside>
+
+  <main>
+    <section id="panel-school" class="panel">
+      <div class="head">
+        <div>
+          <h1>学校管理</h1>
+          <p class="desc">查看学校列表，支持 Excel 导入（表头：名称 / name）</p>
+        </div>
+        <div class="toolbar">
+          <label class="file-btn">
+            选择 Excel
+            <input id="schoolFile" type="file" accept=".xlsx,.xls" />
+          </label>
+          <button type="button" class="primary-btn" id="schoolImportBtn">导入</button>
+          <button type="button" class="ghost-btn" id="schoolRefreshBtn">刷新</button>
+        </div>
+      </div>
+      <div id="schoolMsg" class="msg"></div>
+      <div id="schoolProgress" class="progress-wrap" aria-hidden="true">
+        <div class="progress-meta">
+          <span id="schoolProgressLabel">上传中</span>
+          <span id="schoolProgressPct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div id="schoolProgressBar" class="progress-bar"></div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>名称</th>
+              <th>创建时间</th>
+              <th>更新时间</th>
+            </tr>
+          </thead>
+          <tbody id="schoolBody"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span id="schoolMeta">—</span>
+        <div class="btns">
+          <button type="button" class="ghost-btn" id="schoolPrev">上一页</button>
+          <button type="button" class="ghost-btn" id="schoolNext">下一页</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-data" class="panel hidden">
+      <div class="head">
+        <div>
+          <h1>数据管理</h1>
+          <p class="desc">毕业生就业去向；Excel 含「学校名称」等 56 列表头；唯一键为学校+学号+毕业年份</p>
+        </div>
+        <div class="toolbar">
+          <select id="dataSchoolFilter" class="select">
+            <option value="">全部学校</option>
+          </select>
+          <select id="dataSchoolImport" class="select">
+            <option value="">导入时指定学校（可选）</option>
+          </select>
+          <label class="file-btn">
+            选择 Excel
+            <input id="dataFile" type="file" accept=".xlsx,.xls" />
+          </label>
+          <button type="button" class="primary-btn" id="dataImportBtn">导入</button>
+          <button type="button" class="ghost-btn" id="dataRefreshBtn">刷新</button>
+        </div>
+      </div>
+      <div id="dataMsg" class="msg"></div>
+      <div id="dataProgress" class="progress-wrap" aria-hidden="true">
+        <div class="progress-meta">
+          <span id="dataProgressLabel">上传中</span>
+          <span id="dataProgressPct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div id="dataProgressBar" class="progress-bar"></div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>学校</th>
+              <th>学号</th>
+              <th>姓名</th>
+              <th>毕业年份</th>
+              <th>学院</th>
+              <th>专业</th>
+              <th>去向类别</th>
+              <th>单位名称</th>
+              <th>就业省</th>
+              <th>更新时间</th>
+            </tr>
+          </thead>
+          <tbody id="dataBody"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span id="dataMeta">—</span>
+        <div class="btns">
+          <button type="button" class="ghost-btn" id="dataPrev">上一页</button>
+          <button type="button" class="ghost-btn" id="dataNext">下一页</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-template" class="panel hidden">
+      <div class="head">
+        <div>
+          <h1>模版管理</h1>
+          <p class="desc">配置报告标题层级与指标；详情树即为导出 JSON 结构</p>
+        </div>
+        <div class="toolbar">
+          <button type="button" class="primary-btn" id="tplCreateBtn">新建模版</button>
+          <button type="button" class="ghost-btn" id="tplRefreshBtn">刷新</button>
+        </div>
+      </div>
+      <div id="tplMsg" class="msg"></div>
+
+      <div id="tplListView">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>名称</th>
+                <th>状态</th>
+                <th>更新时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="tplBody"></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <span id="tplMeta">—</span>
+          <div class="btns">
+            <button type="button" class="ghost-btn" id="tplPrev">上一页</button>
+            <button type="button" class="ghost-btn" id="tplNext">下一页</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-report" class="panel hidden">
+      <div class="head">
+        <div>
+          <h1>报告管理</h1>
+          <p class="desc">配置报告名称、学校与模版；一键按模版指标聚合并生成 Word</p>
+        </div>
+        <div class="toolbar">
+          <button type="button" class="primary-btn" id="mrCreateBtn">新建报告</button>
+          <button type="button" class="ghost-btn" id="mrRefreshBtn">刷新</button>
+        </div>
+      </div>
+      <div id="mrMsg" class="msg"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>名称</th>
+              <th>学校</th>
+              <th>模版</th>
+              <th>状态</th>
+              <th>文件路径</th>
+              <th>更新时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="mrBody"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span id="mrMeta">—</span>
+        <div class="btns">
+          <button type="button" class="ghost-btn" id="mrPrev">上一页</button>
+          <button type="button" class="ghost-btn" id="mrNext">下一页</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="tplStructModal" class="modal-mask" aria-hidden="true">
+    <div class="modal modal-lg">
+      <div class="head" style="margin-bottom:0.75rem">
+        <div>
+          <h3 id="tplStructTitle" style="margin:0">编辑结构</h3>
+          <p class="desc" id="tplStructHint">修改仅在本弹窗内生效，点击「保存」后写入服务器</p>
+        </div>
+        <div class="toolbar">
+          <button type="button" class="primary-btn" id="tplAddRootBtn">添加一级标题</button>
+        </div>
+      </div>
+      <div id="tplStructMsg" class="msg"></div>
+      <div id="tplTree" class="tree"></div>
+      <div class="modal-actions">
+        <button type="button" class="ghost-btn" id="tplStructCancel">取消</button>
+        <button type="button" class="primary-btn" id="tplStructSave">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tplStyleModal" class="modal-mask" aria-hidden="true">
+    <div class="modal">
+      <h3 id="tplStyleTitle">编辑样式</h3>
+      <p class="desc">上传 jpg/png（≤2MB）或手填 URL；上传成功即保存到模版</p>
+      <div id="tplStyleMsg" class="msg"></div>
+      <div class="form-row">
+        <label>封面图</label>
+        <input id="tplCoverImage" type="text" placeholder="上传后自动填入，也可手填 URL" />
+        <div class="toolbar" style="margin-top:0.45rem">
+          <label class="file-btn">选择封面
+            <input id="tplCoverFile" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" />
+          </label>
+          <button type="button" class="primary-btn" id="tplCoverUploadBtn">上传封面</button>
+        </div>
+        <img id="tplCoverPreview" alt="" style="display:none;max-width:100%;max-height:140px;margin-top:0.5rem;border-radius:8px;border:1px solid var(--line)" />
+      </div>
+      <div class="form-row">
+        <label>底图</label>
+        <input id="tplBackCoverImage" type="text" placeholder="上传后自动填入，也可手填 URL" />
+        <div class="toolbar" style="margin-top:0.45rem">
+          <label class="file-btn">选择底图
+            <input id="tplBackFile" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" />
+          </label>
+          <button type="button" class="primary-btn" id="tplBackUploadBtn">上传底图</button>
+        </div>
+        <img id="tplBackPreview" alt="" style="display:none;max-width:100%;max-height:140px;margin-top:0.5rem;border-radius:8px;border:1px solid var(--line)" />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="ghost-btn" id="tplStyleClear">清空两项</button>
+        <button type="button" class="ghost-btn" id="tplStyleCancel">取消</button>
+        <button type="button" class="primary-btn" id="tplStyleSave">保存 URL</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tplModal" class="modal-mask form-layer" aria-hidden="true">
+    <div class="modal">
+      <h3 id="tplModalTitle">编辑</h3>
+      <div id="tplModalBody"></div>
+      <div class="modal-actions">
+        <button type="button" class="ghost-btn" id="tplModalCancel">取消</button>
+        <button type="button" class="primary-btn" id="tplModalOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mrModal" class="modal-mask form-layer" aria-hidden="true">
+    <div class="modal">
+      <h3 id="mrModalTitle">新建报告</h3>
+      <div id="mrModalMsg" class="msg"></div>
+      <div class="form-row">
+        <label>报告名称</label>
+        <input id="mrName" type="text" placeholder="必填" />
+      </div>
+      <div class="form-row">
+        <label>学校</label>
+        <select id="mrSchool" class="select"></select>
+      </div>
+      <div class="form-row">
+        <label>模版</label>
+        <select id="mrTemplate" class="select"></select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="ghost-btn" id="mrModalCancel">取消</button>
+        <button type="button" class="primary-btn" id="mrModalOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var schoolPage = 0;
+      var dataPage = 0;
+      var tplPage = 0;
+      var mrPage = 0;
+      var pageSize = 20;
+      var schoolTotalPages = 0;
+      var dataTotalPages = 0;
+      var tplTotalPages = 0;
+      var mrTotalPages = 0;
+      /** schoolId -> schoolName */
+      var schoolNameById = {};
+      var mrEditingId = null;
+      var mrModalMode = "create";
+      var tplEditingId = null;
+      var tplStyleId = null;
+      var tplTreeData = null;
+      var tplTempSeq = 0;
+      var tplDirty = false;
+      var tplModalSubmit = null;
+
+      function $(id) { return document.getElementById(id); }
+
+      function schoolLabel(schoolId) {
+        if (schoolId == null || schoolId === "") return "";
+        var name = schoolNameById[String(schoolId)];
+        return name ? name : String(schoolId);
+      }
+
+      function fmtTime(v) {
+        if (!v) return "";
+        if (typeof v === "string") return v.replace("T", " ").substring(0, 19);
+        return String(v);
+      }
+
+      function setMsg(el, text, ok) {
+        el.className = "msg " + (ok ? "ok" : "err");
+        el.textContent = text || "";
+      }
+
+      function switchPanel(name) {
+        $("panel-school").classList.toggle("hidden", name !== "school");
+        $("panel-data").classList.toggle("hidden", name !== "data");
+        $("panel-template").classList.toggle("hidden", name !== "template");
+        $("panel-report").classList.toggle("hidden", name !== "report");
+        var buttons = document.querySelectorAll(".nav-btn");
+        for (var i = 0; i < buttons.length; i++) {
+          buttons[i].classList.toggle("active", buttons[i].getAttribute("data-panel") === name);
+        }
+        if (name === "school") loadSchools();
+        if (name === "data") loadData();
+        if (name === "template") {
+          loadTemplates();
+        }
+        if (name === "report") loadManagedReports();
+        if (history.replaceState) {
+          history.replaceState(null, "", "#" + name);
+        }
+      }
+
+      function mrStatusLabel(s) {
+        if (s === 1) return "生成中";
+        if (s === 2) return "成功";
+        if (s === 3) return "失败";
+        return "草稿";
+      }
+
+      function loadManagedReports() {
+        fetch("/managed-report/list?page=" + mrPage + "&size=" + pageSize)
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            if (body.code !== 0) {
+              setMsg($("mrMsg"), body.message || "查询失败", false);
+              return;
+            }
+            setMsg($("mrMsg"), "", true);
+            mrTotalPages = body.totalPages || 0;
+            var rows = body.content || [];
+            var html = "";
+            if (!rows.length) {
+              html = '<tr><td colspan="8">暂无报告</td></tr>';
+            } else {
+              for (var i = 0; i < rows.length; i++) {
+                var row = rows[i];
+                var failTip = row.failMessage ? String(row.failMessage).replace(/"/g, "&quot;") : "";
+                html += "<tr>"
+                  + "<td>" + row.id + "</td>"
+                  + "<td>" + (row.name || "") + "</td>"
+                  + "<td>" + (row.schoolName || row.schoolId || "") + "</td>"
+                  + "<td>" + (row.templateName || row.templateId || "") + "</td>"
+                  + "<td title=\"" + failTip + "\">" + mrStatusLabel(row.generateStatus) + "</td>"
+                  + "<td style=\"max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\" title=\""
+                  + (row.filePath || "").replace(/"/g, "&quot;") + "\">" + (row.filePath || "—") + "</td>"
+                  + "<td>" + fmtTime(row.updateTime) + "</td>"
+                  + "<td class=\"ops\">"
+                  + "<button type=\"button\" class=\"ghost-btn\" data-mr-gen=\"" + row.id + "\">生成</button> "
+                  + "<button type=\"button\" class=\"ghost-btn\" data-mr-edit=\"" + row.id + "\">编辑</button> "
+                  + "<button type=\"button\" class=\"ghost-btn\" data-mr-del=\"" + row.id + "\">删除</button>"
+                  + "</td></tr>";
+              }
+            }
+            $("mrBody").innerHTML = html;
+            $("mrMeta").textContent = "第 " + (mrPage + 1) + " / " + Math.max(mrTotalPages, 1) + " 页，共 "
+              + (body.totalElements || 0) + " 条";
+          })
+          .catch(function () { setMsg($("mrMsg"), "网络错误", false); });
+      }
+
+      function fillMrSchoolSelect(selectedId) {
+        var sel = $("mrSchool");
+        var html = '<option value="">请选择学校</option>';
+        var ids = Object.keys(schoolNameById);
+        ids.sort(function (a, b) { return Number(a) - Number(b); });
+        for (var i = 0; i < ids.length; i++) {
+          var id = ids[i];
+          var selected = String(selectedId) === String(id) ? " selected" : "";
+          html += '<option value="' + id + '"' + selected + ">" + schoolNameById[id] + "</option>";
+        }
+        sel.innerHTML = html;
+      }
+
+      function fillMrTemplateSelect(selectedId) {
+        return fetch("/report-template/list?page=0&size=200&status=1")
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            var sel = $("mrTemplate");
+            var html = '<option value="">请选择模版</option>';
+            var rows = (body && body.code === 0 && body.content) ? body.content : [];
+            for (var i = 0; i < rows.length; i++) {
+              var row = rows[i];
+              var selected = String(selectedId) === String(row.id) ? " selected" : "";
+              html += '<option value="' + row.id + '"' + selected + ">" + (row.name || row.id) + "</option>";
+            }
+            sel.innerHTML = html;
+          });
+      }
+
+      function openMrModal(mode, row) {
+        mrModalMode = mode;
+        mrEditingId = row ? row.id : null;
+        $("mrModalTitle").textContent = mode === "edit" ? "编辑报告" : "新建报告";
+        setMsg($("mrModalMsg"), "", true);
+        $("mrName").value = row ? (row.name || "") : "";
+        fillMrSchoolSelect(row ? row.schoolId : "");
+        fillMrTemplateSelect(row ? row.templateId : "").then(function () {
+          $("mrModal").classList.add("show");
+          $("mrModal").setAttribute("aria-hidden", "false");
+        });
+      }
+
+      function closeMrModal() {
+        $("mrModal").classList.remove("show");
+        $("mrModal").setAttribute("aria-hidden", "true");
+        mrEditingId = null;
+      }
+
+      function loadSchools() {
+        fetch("/school/list?page=" + schoolPage + "&size=" + pageSize)
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            if (body.code !== 0) {
+              setMsg($("schoolMsg"), body.message || "查询失败", false);
+              return;
+            }
+            setMsg($("schoolMsg"), "", true);
+            schoolTotalPages = body.totalPages || 0;
+            var rows = body.content || [];
+            var html = "";
+            if (!rows.length) {
+              html = '<tr><td colspan="4" class="empty">暂无数据，请先导入</td></tr>';
+            } else {
+              for (var i = 0; i < rows.length; i++) {
+                var s = rows[i];
+                html += "<tr>"
+                  + "<td>" + (s.id == null ? "" : s.id) + "</td>"
+                  + "<td>" + escapeHtml(s.name) + "</td>"
+                  + "<td>" + fmtTime(s.createTime) + "</td>"
+                  + "<td>" + fmtTime(s.updateTime) + "</td>"
+                  + "</tr>";
+              }
+            }
+            $("schoolBody").innerHTML = html;
+            $("schoolMeta").textContent = "共 " + (body.totalElements || 0) + " 条，第 "
+              + ((body.page || 0) + 1) + " / " + Math.max(body.totalPages || 1, 1) + " 页";
+          })
+          .catch(function () {
+            setMsg($("schoolMsg"), "请求失败，请确认服务已启动", false);
+          });
+      }
+
+      function loadSchoolOptions() {
+        return fetch("/school/list?page=0&size=200")
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            if (body.code !== 0) return;
+            var rows = body.content || [];
+            var filter = $("dataSchoolFilter");
+            var importSel = $("dataSchoolImport");
+            var filterVal = filter.value;
+            var importVal = importSel.value;
+            filter.innerHTML = '<option value="">全部学校</option>';
+            importSel.innerHTML = '<option value="">导入时指定学校（可选）</option>';
+            schoolNameById = {};
+            for (var i = 0; i < rows.length; i++) {
+              var s = rows[i];
+              if (s.id != null) {
+                schoolNameById[String(s.id)] = s.name || "";
+              }
+              var label = s.name || ("学校#" + s.id);
+              filter.innerHTML += '<option value="' + s.id + '">' + escapeHtml(label) + "</option>";
+              importSel.innerHTML += '<option value="' + s.id + '">' + escapeHtml(label) + "</option>";
+            }
+            filter.value = filterVal;
+            importSel.value = importVal;
+          });
+      }
+
+      function loadData() {
+        loadSchoolOptions().then(function () {
+          var schoolId = $("dataSchoolFilter").value;
+          var url = "/grad-employment/list?page=" + dataPage + "&size=" + pageSize;
+          if (schoolId) url += "&schoolId=" + encodeURIComponent(schoolId);
+          return fetch(url);
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            if (body.code !== 0) {
+              setMsg($("dataMsg"), body.message || "查询失败", false);
+              return;
+            }
+            setMsg($("dataMsg"), "", true);
+            dataTotalPages = body.totalPages || 0;
+            var rows = body.content || [];
+            var html = "";
+            if (!rows.length) {
+              html = '<tr><td colspan="11" class="empty">暂无数据，请先导入</td></tr>';
+            } else {
+              for (var i = 0; i < rows.length; i++) {
+                var d = rows[i];
+                html += "<tr>"
+                  + "<td>" + (d.id == null ? "" : d.id) + "</td>"
+                  + "<td>" + escapeHtml(schoolLabel(d.schoolId)) + "</td>"
+                  + "<td>" + escapeHtml(d.studentNo) + "</td>"
+                  + "<td>" + escapeHtml(d.studentName) + "</td>"
+                  + "<td>" + (d.graduationYear == null ? "" : d.graduationYear) + "</td>"
+                  + "<td>" + escapeHtml(d.collegeName) + "</td>"
+                  + "<td>" + escapeHtml(d.majorName) + "</td>"
+                  + "<td>" + escapeHtml(d.destinationCategory) + "</td>"
+                  + "<td>" + escapeHtml(d.employerName) + "</td>"
+                  + "<td>" + escapeHtml(d.jobProvince) + "</td>"
+                  + "<td>" + fmtTime(d.updatedAt) + "</td>"
+                  + "</tr>";
+              }
+            }
+            $("dataBody").innerHTML = html;
+            $("dataMeta").textContent = "共 " + (body.totalElements || 0) + " 条，第 "
+              + ((body.page || 0) + 1) + " / " + Math.max(body.totalPages || 1, 1) + " 页";
+          })
+          .catch(function () {
+            setMsg($("dataMsg"), "请求失败，请确认服务已启动", false);
+          });
+      }
+
+      function escapeHtml(v) {
+        if (v == null) return "";
+        return String(v)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function setProgress(ids, visible, pct, label, indeterminate) {
+        var wrap = $(ids.wrap);
+        var bar = $(ids.bar);
+        var pctEl = $(ids.pct);
+        var labelEl = $(ids.label);
+        if (!wrap) return;
+        wrap.classList.toggle("visible", !!visible);
+        wrap.setAttribute("aria-hidden", visible ? "false" : "true");
+        if (!visible) {
+          bar.classList.remove("indeterminate");
+          bar.style.width = "0%";
+          pctEl.textContent = "0%";
+          labelEl.textContent = "上传中";
+          return;
+        }
+        labelEl.textContent = label || "上传中";
+        if (indeterminate) {
+          bar.classList.add("indeterminate");
+          pctEl.textContent = "";
+        } else {
+          bar.classList.remove("indeterminate");
+          var p = Math.max(0, Math.min(100, Math.round(pct || 0)));
+          bar.style.width = p + "%";
+          pctEl.textContent = p + "%";
+        }
+      }
+
+      function setImportBusy(importBtn, fileInput, busy) {
+        if (importBtn) importBtn.disabled = !!busy;
+        var fileBtn = fileInput && fileInput.parentElement;
+        if (fileBtn && fileBtn.classList.contains("file-btn")) {
+          fileBtn.classList.toggle("disabled", !!busy);
+        }
+      }
+
+      function taskStorageKey(kind) {
+        return "myreport:importTask:" + kind;
+      }
+
+      function saveTaskId(kind, taskId) {
+        try {
+          if (taskId) sessionStorage.setItem(taskStorageKey(kind), taskId);
+          else sessionStorage.removeItem(taskStorageKey(kind));
+        } catch (e) { /* ignore */ }
+      }
+
+      function loadTaskId(kind) {
+        try {
+          return sessionStorage.getItem(taskStorageKey(kind));
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function formatImportSuccess(kind, body) {
+        var r = (body && body.result) || body || {};
+        if (kind === "school") {
+          return "导入成功，新增 " + (r.successCount || 0) + " 条";
+        }
+        return "导入成功：新增 " + (r.inserted || 0)
+          + "，更新 " + (r.updated || 0)
+          + (r.batchId ? ("，批次 " + r.batchId) : "");
+      }
+
+      function applyServerProgress(kind, body, ctx) {
+        var state = body.nState;
+        var total = body.nTotal > 0 ? body.nTotal : 100;
+        var pct = total > 0 ? (body.nProgress * 100 / total) : 0;
+        var msg = body.strMessage || "";
+        if (state === 1) {
+          setImportBusy(ctx.importBtn, ctx.fileInput, true);
+          // 详细进度只放进度条标签，避免与上方 msg 重复两行
+          setProgress(ctx.progressIds, true, pct, msg || "导入中", false);
+          setMsg(ctx.msgEl, "导入进行中…", true);
+          return "running";
+        }
+        if (state === 2) {
+          setImportBusy(ctx.importBtn, ctx.fileInput, false);
+          setProgress(ctx.progressIds, false);
+          setMsg(ctx.msgEl, formatImportSuccess(kind, body), true);
+          saveTaskId(kind, null);
+          if (ctx.fileInput) ctx.fileInput.value = "";
+          if (ctx.onOk && !ctx.resumeSilent) ctx.onOk();
+          return "done";
+        }
+        if (state === 4) {
+          setImportBusy(ctx.importBtn, ctx.fileInput, false);
+          setProgress(ctx.progressIds, false);
+          setMsg(ctx.msgEl, msg || "导入失败", false);
+          saveTaskId(kind, null);
+          return "done";
+        }
+        return "running";
+      }
+
+      function pollImportProgress(kind, taskId, progressUrl, ctx) {
+        if (!taskId) return;
+        saveTaskId(kind, taskId);
+        var stopped = false;
+
+        function tick() {
+          if (stopped) return;
+          fetch(progressUrl + "?taskId=" + encodeURIComponent(taskId))
+            .then(function (r) { return r.json(); })
+            .then(function (body) {
+              if (body.code !== 0) {
+                setImportBusy(ctx.importBtn, ctx.fileInput, false);
+                setProgress(ctx.progressIds, false);
+                saveTaskId(kind, null);
+                // 重启后任务已清理：恢复场景静默消失，主动轮询时再提示
+                if (!ctx.resumeSilent) {
+                  setMsg(ctx.msgEl, body.message || "进度查询失败", false);
+                } else {
+                  setMsg(ctx.msgEl, "", true);
+                }
+                stopped = true;
+                return;
+              }
+              var status = applyServerProgress(kind, body, ctx);
+              if (status === "done") {
+                stopped = true;
+                return;
+              }
+              setTimeout(tick, 10000);
+            })
+            .catch(function () {
+              setTimeout(tick, 10000);
+            });
+        }
+        tick();
+      }
+
+      function resumeImportIfAny(kind, progressUrl, ctx) {
+        var taskId = loadTaskId(kind);
+        if (!taskId) return;
+        ctx.resumeSilent = true;
+        pollImportProgress(kind, taskId, progressUrl, ctx);
+      }
+
+      function importFile(kind, fileInput, url, progressUrl, msgEl, progressIds, importBtn, onOk, extraFields) {
+        if (!fileInput.files || !fileInput.files.length) {
+          setMsg(msgEl, "请先选择 Excel 文件", false);
+          return;
+        }
+        var ctx = {
+          msgEl: msgEl,
+          progressIds: progressIds,
+          importBtn: importBtn,
+          fileInput: fileInput,
+          onOk: onOk
+        };
+        var fd = new FormData();
+        fd.append("file", fileInput.files[0]);
+        if (extraFields) {
+          for (var k in extraFields) {
+            if (extraFields.hasOwnProperty(k) && extraFields[k] !== "" && extraFields[k] != null) {
+              fd.append(k, extraFields[k]);
+            }
+          }
+        }
+        setMsg(msgEl, "正在上传…", true);
+        setImportBusy(importBtn, fileInput, true);
+        setProgress(progressIds, true, 0, "上传中", false);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", url);
+        xhr.upload.onprogress = function (e) {
+          if (!e.lengthComputable) return;
+          var pct = (e.loaded / e.total) * 100;
+          setProgress(progressIds, true, pct, "上传中", false);
+          setMsg(msgEl, "正在上传 " + Math.round(pct) + "%…", true);
+        };
+        xhr.upload.onload = function () {
+          setProgress(progressIds, true, 100, "等待服务端处理", true);
+          setMsg(msgEl, "上传完成，正在提交任务…", true);
+        };
+        xhr.onerror = function () {
+          setImportBusy(importBtn, fileInput, false);
+          setProgress(progressIds, false);
+          setMsg(msgEl, "请求失败", false);
+        };
+        xhr.onload = function () {
+          var body;
+          try {
+            body = JSON.parse(xhr.responseText || "{}");
+          } catch (err) {
+            setImportBusy(importBtn, fileInput, false);
+            setProgress(progressIds, false);
+            setMsg(msgEl, "响应解析失败", false);
+            return;
+          }
+          if (xhr.status >= 200 && xhr.status < 300 && body.code === 0 && body.taskId) {
+            setMsg(msgEl, body.message || "导入任务已提交", true);
+            pollImportProgress(kind, body.taskId, progressUrl, ctx);
+          } else {
+            setImportBusy(importBtn, fileInput, false);
+            setProgress(progressIds, false);
+            setMsg(msgEl, body.message || "导入失败", false);
+          }
+        };
+        xhr.send(fd);
+      }
+
+      var schoolProgressIds = {
+        wrap: "schoolProgress", bar: "schoolProgressBar",
+        pct: "schoolProgressPct", label: "schoolProgressLabel"
+      };
+      var dataProgressIds = {
+        wrap: "dataProgress", bar: "dataProgressBar",
+        pct: "dataProgressPct", label: "dataProgressLabel"
+      };
+
+      var navBtns = document.querySelectorAll(".nav-btn");
+      for (var i = 0; i < navBtns.length; i++) {
+        navBtns[i].addEventListener("click", function (e) {
+          switchPanel(e.currentTarget.getAttribute("data-panel"));
+        });
+      }
+
+      $("schoolRefreshBtn").addEventListener("click", function () { schoolPage = 0; loadSchools(); });
+      $("dataRefreshBtn").addEventListener("click", function () { dataPage = 0; loadData(); });
+      $("dataSchoolFilter").addEventListener("change", function () { dataPage = 0; loadData(); });
+      $("schoolImportBtn").addEventListener("click", function () {
+        importFile(
+          "school",
+          $("schoolFile"),
+          "/school/importExcel",
+          "/school/importProgress",
+          $("schoolMsg"),
+          schoolProgressIds,
+          $("schoolImportBtn"),
+          function () {
+            schoolPage = 0;
+            loadSchools();
+            loadSchoolOptions();
+          }
+        );
+      });
+      $("dataImportBtn").addEventListener("click", function () {
+        importFile(
+          "grad",
+          $("dataFile"),
+          "/grad-employment/importExcel",
+          "/grad-employment/importProgress",
+          $("dataMsg"),
+          dataProgressIds,
+          $("dataImportBtn"),
+          function () {
+            dataPage = 0;
+            loadData();
+          },
+          { schoolId: $("dataSchoolImport").value }
+        );
+      });
+      $("schoolPrev").addEventListener("click", function () {
+        if (schoolPage > 0) { schoolPage--; loadSchools(); }
+      });
+      $("schoolNext").addEventListener("click", function () {
+        if (schoolPage + 1 < schoolTotalPages) { schoolPage++; loadSchools(); }
+      });
+      $("dataPrev").addEventListener("click", function () {
+        if (dataPage > 0) { dataPage--; loadData(); }
+      });
+      $("dataNext").addEventListener("click", function () {
+        if (dataPage + 1 < dataTotalPages) { dataPage++; loadData(); }
+      });
+
+      function postJson(url, body) {
+        return fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body || {})
+        }).then(function (r) { return r.json(); });
+      }
+
+      function openTplModal(title, html, onOk) {
+        $("tplModalTitle").textContent = title;
+        $("tplModalBody").innerHTML = html;
+        tplModalSubmit = onOk;
+        $("tplModal").classList.add("show");
+        $("tplModal").setAttribute("aria-hidden", "false");
+      }
+
+      function closeTplModal() {
+        $("tplModal").classList.remove("show");
+        $("tplModal").setAttribute("aria-hidden", "true");
+        tplModalSubmit = null;
+      }
+
+      function openStructModal() {
+        $("tplStructModal").classList.add("show");
+        $("tplStructModal").setAttribute("aria-hidden", "false");
+        setMsg($("tplStructMsg"), "", true);
+      }
+
+      function closeStructModal() {
+        $("tplStructModal").classList.remove("show");
+        $("tplStructModal").setAttribute("aria-hidden", "true");
+        tplEditingId = null;
+        tplTreeData = null;
+        tplDirty = false;
+      }
+
+      function openStyleModal() {
+        $("tplStyleModal").classList.add("show");
+        $("tplStyleModal").setAttribute("aria-hidden", "false");
+        setMsg($("tplStyleMsg"), "", true);
+      }
+
+      function closeStyleModal() {
+        $("tplStyleModal").classList.remove("show");
+        $("tplStyleModal").setAttribute("aria-hidden", "true");
+        tplStyleId = null;
+      }
+
+      function openStyleEditor(id) {
+        tplStyleId = id;
+        fetch("/report-template/detail?id=" + id)
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            if (body.code !== 0) {
+              setMsg($("tplMsg"), body.message || "加载失败", false);
+              return;
+            }
+            $("tplStyleTitle").textContent = "编辑样式 — " + body.name + " (#" + body.templateId + ")";
+            $("tplCoverImage").value = body.coverImage || "";
+            $("tplBackCoverImage").value = body.backCoverImage || "";
+            updateStylePreview("tplCoverPreview", body.coverImage);
+            updateStylePreview("tplBackPreview", body.backCoverImage);
+            openStyleModal();
+          })
+          .catch(function () {
+            setMsg($("tplMsg"), "请求失败", false);
+          });
+      }
+
+      function updateStylePreview(imgId, url) {
+        var img = $(imgId);
+        if (!img) return;
+        if (url) {
+          img.src = url;
+          img.style.display = "block";
+        } else {
+          img.removeAttribute("src");
+          img.style.display = "none";
+        }
+      }
+
+      function uploadStyleImage(slot, fileInputId) {
+        if (!tplStyleId) return;
+        var input = $(fileInputId);
+        if (!input.files || !input.files.length) {
+          setMsg($("tplStyleMsg"), "请先选择图片文件", false);
+          return;
+        }
+        var fd = new FormData();
+        fd.append("id", String(tplStyleId));
+        fd.append("slot", slot);
+        fd.append("file", input.files[0]);
+        setMsg($("tplStyleMsg"), "上传中…", true);
+        fetch("/report-template/uploadImage", { method: "POST", body: fd })
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            if (body.code !== 0) {
+              setMsg($("tplStyleMsg"), body.message || "上传失败", false);
+              return;
+            }
+            $("tplCoverImage").value = body.coverImage || "";
+            $("tplBackCoverImage").value = body.backCoverImage || "";
+            updateStylePreview("tplCoverPreview", body.coverImage);
+            updateStylePreview("tplBackPreview", body.backCoverImage);
+            input.value = "";
+            setMsg($("tplStyleMsg"), "上传成功", true);
+          })
+          .catch(function () {
+            setMsg($("tplStyleMsg"), "上传失败", false);
+          });
+      }
+
+      function nextTempId() {
+        tplTempSeq += 1;
+        return -tplTempSeq;
+      }
+
+      function cloneNodes(nodes) {
+        return JSON.parse(JSON.stringify(nodes || []));
+      }
+
+      function recomputeLevels(nodes, level) {
+        if (!nodes) return;
+        for (var i = 0; i < nodes.length; i++) {
+          nodes[i].level = level;
+          if (!nodes[i].children) nodes[i].children = [];
+          if (nodes[i].nodeType === "TITLE") {
+            recomputeLevels(nodes[i].children, level + 1);
+          } else {
+            nodes[i].children = [];
+          }
+        }
+      }
+
+      function payloadNodes(nodes) {
+        var out = [];
+        for (var i = 0; i < (nodes || []).length; i++) {
+          var n = nodes[i];
+          var item = { nodeType: n.nodeType, name: n.name, children: [] };
+          if (n.nodeType === "TITLE") {
+            item.intro = n.intro || "";
+            item.children = payloadNodes(n.children || []);
+          } else {
+            item.statField = n.statField;
+            item.valueFormat = n.valueFormat;
+            item.displayType = n.displayType;
+            item.chartStyle = n.displayType === "CHART" ? n.chartStyle : null;
+          }
+          out.push(item);
+        }
+        return out;
+      }
+
+      function markDirty() {
+        tplDirty = true;
+        setMsg($("tplStructMsg"), "有未保存的修改", true);
+      }
+
+      function loadTemplates() {
+        fetch("/report-template/list?page=" + tplPage + "&size=" + pageSize)
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            if (body.code !== 0) {
+              setMsg($("tplMsg"), body.message || "查询失败", false);
+              return;
+            }
+            setMsg($("tplMsg"), "", true);
+            tplTotalPages = body.totalPages || 0;
+            var rows = body.content || [];
+            var html = "";
+            if (!rows.length) {
+              html = '<tr><td colspan="5" class="empty">暂无模版，请先新建</td></tr>';
+            } else {
+              for (var i = 0; i < rows.length; i++) {
+                var t = rows[i];
+                html += "<tr>"
+                  + "<td>" + (t.id == null ? "" : t.id) + "</td>"
+                  + "<td>" + escapeHtml(t.name) + "</td>"
+                  + "<td>" + (t.status === 0 ? "停用" : "启用") + "</td>"
+                  + "<td>" + fmtTime(t.updateTime) + "</td>"
+                  + "<td>"
+                  + '<button type="button" class="ghost-btn tpl-edit" data-id="' + t.id + '">编辑结构</button> '
+                  + '<button type="button" class="ghost-btn tpl-style" data-id="' + t.id + '">编辑样式</button> '
+                  + '<button type="button" class="ghost-btn tpl-rename" data-id="' + t.id + '" data-name="' + escapeHtml(t.name) + '">改名</button> '
+                  + '<button type="button" class="ghost-btn tpl-copy" data-id="' + t.id + '">复制</button> '
+                  + '<button type="button" class="danger-btn tpl-del" data-id="' + t.id + '">删除</button>'
+                  + "</td></tr>";
+              }
+            }
+            $("tplBody").innerHTML = html;
+            $("tplMeta").textContent = "共 " + (body.totalElements || 0) + " 条，第 "
+              + ((body.page || 0) + 1) + " / " + Math.max(body.totalPages || 1, 1) + " 页";
+          })
+          .catch(function () {
+            setMsg($("tplMsg"), "请求失败，请确认服务已启动", false);
+          });
+      }
+
+      function openStructureEditor(id) {
+        tplEditingId = id;
+        tplTempSeq = 0;
+        tplDirty = false;
+        fetch("/report-template/detail?id=" + id)
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            if (body.code !== 0) {
+              setMsg($("tplMsg"), body.message || "加载失败", false);
+              return;
+            }
+            $("tplStructTitle").textContent = "编辑结构 — " + body.name + " (#" + body.templateId + ")";
+            tplTreeData = cloneNodes(body.nodes || []);
+            recomputeLevels(tplTreeData, 1);
+            renderTplTree();
+            openStructModal();
+          })
+          .catch(function () {
+            setMsg($("tplMsg"), "请求失败", false);
+          });
+      }
+
+      function findParentAndSiblings(nodes, targetId, parentId) {
+        parentId = parentId == null ? null : parentId;
+        for (var i = 0; i < nodes.length; i++) {
+          var n = nodes[i];
+          if (String(n.id) === String(targetId)) {
+            return { parentId: parentId, siblings: nodes, index: i };
+          }
+          var found = findParentAndSiblings(n.children || [], targetId, n.id);
+          if (found) return found;
+        }
+        return null;
+      }
+
+      function findNodeById(nodes, id) {
+        for (var i = 0; i < (nodes || []).length; i++) {
+          if (String(nodes[i].id) === String(id)) return nodes[i];
+          var found = findNodeById(nodes[i].children || [], id);
+          if (found) return found;
+        }
+        return null;
+      }
+
+      function removeNodeById(nodes, id) {
+        for (var i = 0; i < nodes.length; i++) {
+          if (String(nodes[i].id) === String(id)) {
+            nodes.splice(i, 1);
+            return true;
+          }
+          if (removeNodeById(nodes[i].children || [], id)) return true;
+        }
+        return false;
+      }
+
+      function renderTplTree() {
+        var root = $("tplTree");
+        if (!tplTreeData || !tplTreeData.length) {
+          root.innerHTML = '<div class="empty">暂无节点，请添加一级标题</div>';
+          return;
+        }
+        root.innerHTML = renderNodesHtml(tplTreeData);
+      }
+
+      function renderNodesHtml(nodes) {
+        var html = "";
+        for (var i = 0; i < nodes.length; i++) {
+          var n = nodes[i];
+          var isTitle = n.nodeType === "TITLE";
+          var tag = isTitle ? ("L" + n.level + " 标题") : ("L" + n.level + " 指标");
+          var meta = "";
+          if (!isTitle) {
+            meta = " · " + (n.statField || "") + " / " + (n.valueFormat || "") + " / " + (n.displayType || "")
+              + (n.displayType === "CHART" && n.chartStyle ? (" / " + n.chartStyle) : "");
+          }
+          html += '<div class="tree-node" data-id="' + n.id + '">';
+          html += '<div class="row">';
+          html += '<span class="tag' + (isTitle ? "" : " metric") + '">' + tag + "</span>";
+          html += '<span class="name">' + escapeHtml(n.name) + "</span>";
+          if (meta) html += '<span class="tag">' + escapeHtml(meta) + "</span>";
+          html += '<span class="acts">';
+          if (isTitle) {
+            html += '<button type="button" data-act="add-title" data-id="' + n.id + '">子标题</button>';
+            html += '<button type="button" data-act="add-metric" data-id="' + n.id + '">指标</button>';
+          }
+          html += '<button type="button" data-act="edit" data-id="' + n.id + '">编辑</button>';
+          html += '<button type="button" data-act="up" data-id="' + n.id + '">上移</button>';
+          html += '<button type="button" data-act="down" data-id="' + n.id + '">下移</button>';
+          html += '<button type="button" data-act="del" data-id="' + n.id + '">删除</button>';
+          html += "</span></div>";
+          if (isTitle && n.intro) {
+            html += '<div class="desc" style="margin:0.25rem 0 0 0.2rem">' + escapeHtml(n.intro) + "</div>";
+          }
+          var kids = n.children || [];
+          if (kids.length) {
+            html += '<div class="tree-children">' + renderNodesHtml(kids) + "</div>";
+          }
+          html += "</div>";
+        }
+        return html;
+      }
+
+      function metricFormHtml(n) {
+        n = n || {};
+        var isTable = n.displayType === "TABLE";
+        return ''
+          + '<div class="form-row"><label>指标名称</label><input id="fName" value="' + escapeHtml(n.name || "") + '" /></div>'
+          + '<div class="form-row"><label>统计字段</label><input id="fStat" value="' + escapeHtml(n.statField || "") + '" placeholder="数据集字段名" /></div>'
+          + '<div class="form-row"><label>输出形式</label><select id="fFormat">'
+          + '<option value="PERCENT"' + (n.valueFormat === "PERCENT" ? " selected" : "") + ">百分比</option>"
+          + '<option value="COUNT"' + (n.valueFormat === "COUNT" ? " selected" : "") + ">数量</option>"
+          + "</select></div>"
+          + '<div class="form-row"><label>展示形式</label><select id="fDisplay">'
+          + '<option value="TABLE"' + (isTable ? " selected" : "") + ">表</option>"
+          + '<option value="CHART"' + (!isTable ? " selected" : "") + ">图表</option>"
+          + "</select></div>"
+          + '<div class="form-row" id="fChartRow" style="' + (isTable ? "display:none" : "") + '"><label>图表样式</label><select id="fChart">'
+          + '<option value="BAR"' + (n.chartStyle === "BAR" ? " selected" : "") + ">柱状图</option>"
+          + '<option value="PIE"' + (n.chartStyle === "PIE" ? " selected" : "") + ">饼图</option>"
+          + '<option value="LINE"' + (n.chartStyle === "LINE" ? " selected" : "") + ">折线图</option>"
+          + "</select></div>";
+      }
+
+      function bindMetricDisplayToggle() {
+        var display = $("fDisplay");
+        var row = $("fChartRow");
+        if (!display || !row) return;
+        function sync() {
+          row.style.display = display.value === "TABLE" ? "none" : "";
+        }
+        display.addEventListener("change", sync);
+        sync();
+      }
+
+      function titleFormHtml(n) {
+        n = n || {};
+        return ''
+          + '<div class="form-row"><label>标题名称</label><input id="fName" value="' + escapeHtml(n.name || "") + '" /></div>'
+          + '<div class="form-row"><label>介绍</label><textarea id="fIntro">' + escapeHtml(n.intro || "") + "</textarea></div>";
+      }
+
+      function moveSiblingLocal(id, dir) {
+        var info = findParentAndSiblings(tplTreeData, id, null);
+        if (!info) return;
+        var idx = info.index;
+        var swap = idx + dir;
+        if (swap < 0 || swap >= info.siblings.length) return;
+        var tmp = info.siblings[idx];
+        info.siblings[idx] = info.siblings[swap];
+        info.siblings[swap] = tmp;
+        markDirty();
+        renderTplTree();
+      }
+
+      $("tplBody").addEventListener("click", function (e) {
+        var btn = e.target;
+        if (!btn || !btn.getAttribute) return;
+        var id = btn.getAttribute("data-id");
+        if (!id) return;
+        id = Number(id);
+        if (btn.classList.contains("tpl-edit")) {
+          openStructureEditor(id);
+          return;
+        }
+        if (btn.classList.contains("tpl-style")) {
+          openStyleEditor(id);
+          return;
+        }
+        if (btn.classList.contains("tpl-rename")) {
+          var oldName = btn.getAttribute("data-name") || "";
+          openTplModal("修改模版", '<div class="form-row"><label>名称</label><input id="fName" value="' + oldName + '" /></div>', function () {
+            var name = $("fName").value.trim();
+            if (!name) { setMsg($("tplMsg"), "名称不能为空", false); return false; }
+            return postJson("/report-template/update", { id: id, name: name }).then(function (body) {
+              if (body.code !== 0) { setMsg($("tplMsg"), body.message || "失败", false); return false; }
+              loadTemplates();
+              return true;
+            });
+          });
+          return;
+        }
+        if (btn.classList.contains("tpl-copy")) {
+          postJson("/report-template/copy", { id: id }).then(function (body) {
+            if (body.code !== 0) { setMsg($("tplMsg"), body.message || "复制失败", false); return; }
+            setMsg($("tplMsg"), "已复制为 #" + body.id, true);
+            loadTemplates();
+          });
+          return;
+        }
+        if (btn.classList.contains("tpl-del")) {
+          if (!confirm("确认删除该模版？")) return;
+          postJson("/report-template/delete", { id: id }).then(function (body) {
+            if (body.code !== 0) { setMsg($("tplMsg"), body.message || "删除失败", false); return; }
+            loadTemplates();
+          });
+        }
+      });
+
+      $("tplTree").addEventListener("click", function (e) {
+        var btn = e.target;
+        if (!btn || !btn.getAttribute) return;
+        var act = btn.getAttribute("data-act");
+        var id = btn.getAttribute("data-id");
+        if (!act || id == null) return;
+        if (act === "up") { moveSiblingLocal(id, -1); return; }
+        if (act === "down") { moveSiblingLocal(id, 1); return; }
+        if (act === "del") {
+          if (!confirm("确认删除该节点及其子节点？（保存后才生效）")) return;
+          removeNodeById(tplTreeData, id);
+          recomputeLevels(tplTreeData, 1);
+          markDirty();
+          renderTplTree();
+          return;
+        }
+        if (act === "add-title") {
+          var parent = findNodeById(tplTreeData, id);
+          if (!parent) return;
+          openTplModal("添加子标题", titleFormHtml(), function () {
+            var name = $("fName").value.trim();
+            if (!name) { setMsg($("tplStructMsg"), "名称不能为空", false); return false; }
+            if (!parent.children) parent.children = [];
+            parent.children.push({
+              id: nextTempId(),
+              nodeType: "TITLE",
+              level: parent.level + 1,
+              name: name,
+              intro: $("fIntro").value,
+              children: []
+            });
+            markDirty();
+            renderTplTree();
+            return true;
+          });
+          return;
+        }
+        if (act === "add-metric") {
+          var p = findNodeById(tplTreeData, id);
+          if (!p) return;
+          openTplModal("添加指标", metricFormHtml(), function () {
+            var name = $("fName").value.trim();
+            var stat = $("fStat").value.trim();
+            var display = $("fDisplay").value;
+            if (!name || !stat) { setMsg($("tplStructMsg"), "名称与统计字段必填", false); return false; }
+            if (!p.children) p.children = [];
+            p.children.push({
+              id: nextTempId(),
+              nodeType: "METRIC",
+              level: p.level + 1,
+              name: name,
+              statField: stat,
+              valueFormat: $("fFormat").value,
+              displayType: display,
+              chartStyle: display === "CHART" ? $("fChart").value : null,
+              children: []
+            });
+            markDirty();
+            renderTplTree();
+            return true;
+          });
+          bindMetricDisplayToggle();
+          return;
+        }
+        if (act === "edit") {
+          var node = findNodeById(tplTreeData, id);
+          if (!node) return;
+          if (node.nodeType === "TITLE") {
+            openTplModal("编辑标题", titleFormHtml(node), function () {
+              var name = $("fName").value.trim();
+              if (!name) { setMsg($("tplStructMsg"), "名称不能为空", false); return false; }
+              node.name = name;
+              node.intro = $("fIntro").value;
+              markDirty();
+              renderTplTree();
+              return true;
+            });
+          } else {
+            openTplModal("编辑指标", metricFormHtml(node), function () {
+              var name = $("fName").value.trim();
+              var stat = $("fStat").value.trim();
+              var display = $("fDisplay").value;
+              if (!name || !stat) { setMsg($("tplStructMsg"), "名称与统计字段必填", false); return false; }
+              node.name = name;
+              node.statField = stat;
+              node.valueFormat = $("fFormat").value;
+              node.displayType = display;
+              node.chartStyle = display === "CHART" ? $("fChart").value : null;
+              markDirty();
+              renderTplTree();
+              return true;
+            });
+            bindMetricDisplayToggle();
+          }
+        }
+      });
+
+      $("tplCreateBtn").addEventListener("click", function () {
+        openTplModal("新建模版", '<div class="form-row"><label>名称</label><input id="fName" /></div>'
+          + '<div class="form-row"><label>说明</label><input id="fDesc" /></div>', function () {
+          var name = $("fName").value.trim();
+          if (!name) { setMsg($("tplMsg"), "名称不能为空", false); return false; }
+          return postJson("/report-template/create", {
+            name: name,
+            description: $("fDesc").value
+          }).then(function (body) {
+            if (body.code !== 0) { setMsg($("tplMsg"), body.message || "失败", false); return false; }
+            loadTemplates();
+            return true;
+          });
+        });
+      });
+      $("tplRefreshBtn").addEventListener("click", function () { tplPage = 0; loadTemplates(); });
+      $("tplPrev").addEventListener("click", function () {
+        if (tplPage > 0) { tplPage--; loadTemplates(); }
+      });
+      $("tplNext").addEventListener("click", function () {
+        if (tplPage + 1 < tplTotalPages) { tplPage++; loadTemplates(); }
+      });
+      $("tplAddRootBtn").addEventListener("click", function () {
+        openTplModal("添加一级标题", titleFormHtml(), function () {
+          var name = $("fName").value.trim();
+          if (!name) { setMsg($("tplStructMsg"), "名称不能为空", false); return false; }
+          if (!tplTreeData) tplTreeData = [];
+          tplTreeData.push({
+            id: nextTempId(),
+            nodeType: "TITLE",
+            level: 1,
+            name: name,
+            intro: $("fIntro").value,
+            children: []
+          });
+          markDirty();
+          renderTplTree();
+          return true;
+        });
+      });
+      $("tplStructCancel").addEventListener("click", function () {
+        if (tplDirty && !confirm("有未保存的修改，确定关闭？")) return;
+        closeStructModal();
+      });
+      $("tplStructSave").addEventListener("click", function () {
+        if (!tplEditingId) return;
+        var btn = $("tplStructSave");
+        btn.disabled = true;
+        setMsg($("tplStructMsg"), "保存中…", true);
+        postJson("/report-template/saveTree", {
+          id: tplEditingId,
+          nodes: payloadNodes(tplTreeData)
+        }).then(function (body) {
+          btn.disabled = false;
+          if (body.code !== 0) {
+            setMsg($("tplStructMsg"), body.message || "保存失败", false);
+            return;
+          }
+          setMsg($("tplMsg"), "结构已保存", true);
+          closeStructModal();
+          loadTemplates();
+        }).catch(function () {
+          btn.disabled = false;
+          setMsg($("tplStructMsg"), "保存失败", false);
+        });
+      });
+      $("tplStyleCancel").addEventListener("click", closeStyleModal);
+      $("tplStyleClear").addEventListener("click", function () {
+        $("tplCoverImage").value = "";
+        $("tplBackCoverImage").value = "";
+        updateStylePreview("tplCoverPreview", "");
+        updateStylePreview("tplBackPreview", "");
+      });
+      $("tplCoverUploadBtn").addEventListener("click", function () {
+        uploadStyleImage("cover", "tplCoverFile");
+      });
+      $("tplBackUploadBtn").addEventListener("click", function () {
+        uploadStyleImage("backCover", "tplBackFile");
+      });
+      $("tplStyleSave").addEventListener("click", function () {
+        if (!tplStyleId) return;
+        var btn = $("tplStyleSave");
+        btn.disabled = true;
+        setMsg($("tplStyleMsg"), "保存中…", true);
+        postJson("/report-template/saveStyle", {
+          id: tplStyleId,
+          coverImage: $("tplCoverImage").value.trim() || null,
+          backCoverImage: $("tplBackCoverImage").value.trim() || null
+        }).then(function (body) {
+          btn.disabled = false;
+          if (body.code !== 0) {
+            setMsg($("tplStyleMsg"), body.message || "保存失败", false);
+            return;
+          }
+          setMsg($("tplMsg"), "样式已保存", true);
+          closeStyleModal();
+          loadTemplates();
+        }).catch(function () {
+          btn.disabled = false;
+          setMsg($("tplStyleMsg"), "保存失败", false);
+        });
+      });
+      $("tplModalCancel").addEventListener("click", closeTplModal);
+      $("tplModalOk").addEventListener("click", function () {
+        if (!tplModalSubmit) { closeTplModal(); return; }
+        var ret = tplModalSubmit();
+        if (ret && ret.then) {
+          ret.then(function (ok) { if (ok !== false) closeTplModal(); });
+        } else if (ret !== false) {
+          closeTplModal();
+        }
+      });
+
+      $("mrCreateBtn").addEventListener("click", function () {
+        loadSchoolOptions().then(function () { openMrModal("create", null); });
+      });
+      $("mrRefreshBtn").addEventListener("click", function () { mrPage = 0; loadManagedReports(); });
+      $("mrPrev").addEventListener("click", function () {
+        if (mrPage > 0) { mrPage--; loadManagedReports(); }
+      });
+      $("mrNext").addEventListener("click", function () {
+        if (mrPage + 1 < mrTotalPages) { mrPage++; loadManagedReports(); }
+      });
+      $("mrModalCancel").addEventListener("click", closeMrModal);
+      $("mrModalOk").addEventListener("click", function () {
+        var name = $("mrName").value.trim();
+        var schoolId = $("mrSchool").value;
+        var templateId = $("mrTemplate").value;
+        if (!name) { setMsg($("mrModalMsg"), "报告名称不能为空", false); return; }
+        if (!schoolId) { setMsg($("mrModalMsg"), "请选择学校", false); return; }
+        if (!templateId) { setMsg($("mrModalMsg"), "请选择模版", false); return; }
+        var btn = $("mrModalOk");
+        btn.disabled = true;
+        var req = mrModalMode === "edit"
+          ? postJson("/managed-report/update", {
+              id: mrEditingId,
+              name: name,
+              schoolId: Number(schoolId),
+              templateId: Number(templateId)
+            })
+          : postJson("/managed-report/create", {
+              name: name,
+              schoolId: Number(schoolId),
+              templateId: Number(templateId)
+            });
+        req.then(function (body) {
+          btn.disabled = false;
+          if (body.code !== 0) {
+            setMsg($("mrModalMsg"), body.message || "失败", false);
+            return;
+          }
+          closeMrModal();
+          setMsg($("mrMsg"), mrModalMode === "edit" ? "已更新" : "已创建", true);
+          loadManagedReports();
+        }).catch(function () {
+          btn.disabled = false;
+          setMsg($("mrModalMsg"), "请求失败", false);
+        });
+      });
+      $("mrBody").addEventListener("click", function (e) {
+        var t = e.target;
+        if (!t || !t.getAttribute) return;
+        var genId = t.getAttribute("data-mr-gen");
+        var editId = t.getAttribute("data-mr-edit");
+        var delId = t.getAttribute("data-mr-del");
+        if (genId) {
+          if (!window.confirm("确认生成报告 #" + genId + "？")) return;
+          postJson("/managed-report/generate", { id: Number(genId) }).then(function (body) {
+            if (body.code !== 0) {
+              setMsg($("mrMsg"), body.message || "提交失败", false);
+              return;
+            }
+            setMsg($("mrMsg"), "生成任务已提交，请稍后刷新查看状态", true);
+            loadManagedReports();
+          }).catch(function () { setMsg($("mrMsg"), "提交失败", false); });
+          return;
+        }
+        if (editId) {
+          fetch("/managed-report/detail?id=" + editId)
+            .then(function (r) { return r.json(); })
+            .then(function (body) {
+              if (body.code !== 0) {
+                setMsg($("mrMsg"), body.message || "加载失败", false);
+                return;
+              }
+              loadSchoolOptions().then(function () { openMrModal("edit", body); });
+            });
+          return;
+        }
+        if (delId) {
+          if (!window.confirm("确认删除报告 #" + delId + "？")) return;
+          postJson("/managed-report/delete", { id: Number(delId) }).then(function (body) {
+            if (body.code !== 0) {
+              setMsg($("mrMsg"), body.message || "删除失败", false);
+              return;
+            }
+            setMsg($("mrMsg"), "已删除", true);
+            loadManagedReports();
+          });
+        }
+      });
+
+      resumeImportIfAny("school", "/school/importProgress", {
+        msgEl: $("schoolMsg"),
+        progressIds: schoolProgressIds,
+        importBtn: $("schoolImportBtn"),
+        fileInput: $("schoolFile"),
+        onOk: function () {
+          schoolPage = 0;
+          loadSchools();
+          loadSchoolOptions();
+        }
+      });
+      resumeImportIfAny("grad", "/grad-employment/importProgress", {
+        msgEl: $("dataMsg"),
+        progressIds: dataProgressIds,
+        importBtn: $("dataImportBtn"),
+        fileInput: $("dataFile"),
+        onOk: function () {
+          dataPage = 0;
+          loadData();
+        }
+      });
+
+      var hash = (location.hash || "#school").replace("#", "");
+      if (hash !== "school" && hash !== "data" && hash !== "template" && hash !== "report") hash = "school";
+      loadSchoolOptions().then(function () { switchPanel(hash); });
+    })();
+  </script>
+</body>
+</html>

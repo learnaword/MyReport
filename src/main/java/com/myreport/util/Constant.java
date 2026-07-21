@@ -24,5 +24,8 @@ public final class Constant {
 
         /** 报告生成执行中数量，参数：serverId */
         public static final String REPORT_CREATE_EXECUTOR_COUNT = "report:create:executor:count:%d";
+
+        /** Excel 导入进度，参数：taskId */
+        public static final String IMPORT_PROGRESS = "import:progress:%s";
     }
 }

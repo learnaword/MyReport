@@ -41,11 +41,11 @@ alwaysApply: true
 
 ```text
 docs/<name>/
-  prd_<name>.md
-  tech_design_<name>.md
-  db_design_<name>.md
-  api_design_<name>.md
-  tasks_<name>.md
+  PRD分析.md
+  技术方案.md
+  数据库设计.md
+  API设计.md
+  Task拆分.md
 ```
 
 编码规范、项目 Context 仍可为全局：`docs/coding_standards.md`、`AGENTS.md`、`.cursor/rules/`。
@@ -54,11 +54,11 @@ docs/<name>/
 
 | 能力 | 用户可怎么说 | 产出路径 |
 |------|--------------|----------|
-| PRD 分析 | 做 PRD 分析 | `docs/<name>/prd_<name>.md` |
-| 技术方案 | 做技术方案 | `docs/<name>/tech_design_<name>.md` |
-| 数据库设计 | 做数据库设计 | `docs/<name>/db_design_<name>.md` |
-| API 设计 | 做 API 设计 | `docs/<name>/api_design_<name>.md` |
-| Task 拆分 | 拆 Task / 任务拆分 | `docs/<name>/tasks_<name>.md` |
+| PRD 分析 | 做 PRD 分析 | `docs/<name>/PRD分析.md` |
+| 技术方案 | 做技术方案 | `docs/<name>/技术方案.md` |
+| 数据库设计 | 做数据库设计 | `docs/<name>/数据库设计.md` |
+| API 设计 | 做 API 设计（含 WS） | `docs/<name>/API设计.md` |
+| Task 拆分 | 拆 Task / 任务拆分 | `docs/<name>/Task拆分.md` |
 | 编码规范 | 对齐/整理编码规范 | `docs/coding_standards.md` 或更新规则 |
 | 项目 Context | 更新项目 Context | `AGENTS.md`、`.cursor/rules` |
 | 编码实现 | 开始编码 / 实现某某 | 代码（仅此项） |

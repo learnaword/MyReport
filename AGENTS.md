@@ -33,7 +33,7 @@ POST /report/createReport
 
 | Package | Purpose |
 |---------|---------|
-| `controller` | REST 入口（当前仅报告） |
+| `controller` | REST 入口（报告生成、学校/就业导入、模版、**报告管理**） |
 | `vo` | 请求体（如 `CreateReportVO`） |
 | `util.word` | Spire 报告主流程（`SpireReportUtil`） |
 | `util.word.common` | 模板、文本、坐标、高度、异常收集等 |
@@ -41,7 +41,8 @@ POST /report/createReport
 | `util` | `Constant`、`FileUtil` |
 | `framework.redis` | Jedis 池、`RedisTemplate`、文件进度 |
 | `framework.jpa` | `@EntityScan` / `@EnableJpaRepositories` |
-| `entity` / `repository` | JPA 占位包（待填实体与仓储） |
+| `entity` / `repository` | JPA：学校、就业、模版、**报告实例**等 |
+| `service` | 学校/就业/模版/**报告管理**业务 |
 
 ## Key Entry Points
 
@@ -65,6 +66,12 @@ POST /report/createReport
 - 失败：`{ "code": -1, "message": "..." }`
 
 生成在后台线程执行；客户端应通过 Redis 进度 key（见 `Constant.RedisKey`）轮询状态，而非同步等待文件。
+
+**报告管理（管理台一键生成）** — 详见 `docs/report_manage.md`
+
+- `POST /managed-report/create`：名称 + 学校 + 模版
+- `POST /managed-report/generate`：读模版树、聚合就业指标、组装 `reportJsonArr` 后触发生成；`reportId` = 实例 id
+- 管理台：`/admin/index.html#report`
 
 ## Build & Run
 

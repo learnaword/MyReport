@@ -1,43 +1,35 @@
 services:
   mysql:
-    image: mysql:8.0
-    container_name: myreport-mysql
-    restart: unless-stopped
+    image: docker.m.daocloud.io/library/mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: interview
+      MYSQL_DATABASE: report
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
     ports:
       - "3306:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-report}
-      MYSQL_DATABASE: report
-      TZ: Asia/Shanghai
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --default-authentication-plugin=mysql_native_password
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p$$MYSQL_ROOT_PASSWORD"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 3
       start_period: 30s
 
+  # Redis 缓存
   redis:
-    image: redis:7.2
-    container_name: myreport-redis
-    restart: unless-stopped
+    image: docker.m.daocloud.io/library/redis:7-alpine
     ports:
       - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
+    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 10s
-
+      retries: 3
 volumes:
   mysql_data:
   redis_data:

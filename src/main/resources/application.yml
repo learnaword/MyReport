@@ -6,9 +6,9 @@ spring:
     name: myreport
 
   datasource:
-    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/report?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/report?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
     username: ${MYSQL_USERNAME:root}
-    password: ${MYSQL_PASSWORD:report}
+    password: ${MYSQL_PASSWORD:interview}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -26,4 +26,13 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
-      database: ${REDIS_DB:0}
+      database: ${REDIS_DB:1}
+
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 22MB
+
+# 模版封面/底图上传目录（其下会建 report-template/{id}/）
+myreport:
+  template-upload-dir: ${REPORT_TEMPLATE_UPLOAD_DIR:}

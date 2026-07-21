@@ -2,6 +2,7 @@ package com.myreport.framework.redis;
 
 import org.apache.log4j.Logger;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.params.SetParams;
 
 /**
  * Redis 操作封装，提供项目中常用的静态方法。
@@ -63,6 +64,24 @@ public final class RedisTemplate {
         }
     }
 
+    /**
+     * SET key value NX EX seconds。成功返回 true。
+     */
+    public static boolean setIfAbsent(String key, String value, int seconds) {
+        Jedis jedis = null;
+        try {
+            jedis = RedisConfig.getInstance().getJedis();
+            SetParams params = SetParams.setParams().nx().ex(seconds);
+            String ok = jedis.set(key, value, params);
+            return "OK".equalsIgnoreCase(ok);
+        } catch (Exception e) {
+            logger.error("Redis set NX failed, key=" + key, e);
+            return false;
+        } finally {
+            closeQuietly(jedis);
+        }
+    }
+
     public static Long delete(String key) {
         Jedis jedis = null;
         try {
@@ -71,6 +90,22 @@ public final class RedisTemplate {
         } catch (Exception e) {
             logger.error("Redis delete failed, key=" + key, e);
             return 0L;
+        } finally {
+            closeQuietly(jedis);
+        }
+    }
+
+    /**
+     * 按 pattern 匹配 key（如 import:progress:*）。数据量不大时可用。
+     */
+    public static java.util.Set<String> keys(String pattern) {
+        Jedis jedis = null;
+        try {
+            jedis = RedisConfig.getInstance().getJedis();
+            return jedis.keys(pattern);
+        } catch (Exception e) {
+            logger.error("Redis keys failed, pattern=" + pattern, e);
+            return java.util.Collections.emptySet();
         } finally {
             closeQuietly(jedis);
         }

@@ -18,7 +18,11 @@ test:
 
 # 启动基础设施（MySQL + Redis）
 infra-up:
-	docker compose --env-file .env.example up -d
+	@if [ -f .env ]; then \
+		docker compose --env-file .env up -d; \
+	else \
+		docker compose --env-file .env.example up -d; \
+	fi
 
 # 停止基础设施
 infra-down:
@@ -34,7 +38,7 @@ docker-build:
 
 # Docker 运行应用（依赖宿主机已映射的 MySQL/Redis 端口，或自行改网络）
 docker-run:
-	docker run --rm -p 9091:9091 --env-file .env --add-host=host.docker.internal:host-gateway myreport
+	docker run -p 9091:9091 --env-file .env  myreport
 
 # 清理编译产物
 clean:
