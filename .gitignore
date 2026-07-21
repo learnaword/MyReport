@@ -6,7 +6,6 @@ target/
 .settings/
 .vscode/
 *.class
-*.jar
 *.war
 *.log
 .DS_Store
