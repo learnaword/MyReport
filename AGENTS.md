@@ -74,6 +74,18 @@ POST /report/createReport
 - `GET /managed-report/download?id=`：生成成功（或失败仍有旧稿）后下载 `.docx` — 详见 `docs/report_download.md`
 - 管理台：`/admin/index.html#report`
 
+**模版指标统计字段字典** — 详见 `docs/metric_field_select/API设计.md`
+
+- `GET /report-template/stat-fields`：`fields: [{ value, label }]`（value=库列名，label=中文）；METRIC 的 `statField` 须取自该列表
+
+**AI 简化报告（多接口配置 → plan MD → 确认 → Word）** — 详见 `docs/ai_simple_report.md`、`docs/ai_simple_report/API设计.md`
+
+- 前缀 `/simple-report`：配置 CRUD + `blocks`（多数据接口 + TABLE/BAR/PIE/LINE）
+- `POST /simple-report/plan` → 待确认 MD；`POST /simple-report/runs/confirm` → 异步 Spire 出稿并落交付目录
+- 可选 `notifyEmail` + QQ SMTP（`MAIL_*`）：生成成功后附件发信
+- Redis `reportId`（engineReportId）= `1000000000 + runId`，避免与 `managed_report.id` 冲突
+- Agent/Skill 只调本 API，不以 Word MCP / python-docx 为主路径
+
 ## Build & Run
 
 ```bash

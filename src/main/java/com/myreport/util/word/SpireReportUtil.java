@@ -76,10 +76,12 @@ public class SpireReportUtil {
             WordUtil.reword(tempFilePath, finalFilePath, overallSetting);
             RedisFileStateUtil.fileUpdateProgress(strDownloaderKey, TimeUtil.getReportCreateTime(), TimeUtil.getConsumeTime(overallSetting), 0, "", 2);
             com.myreport.service.ManagedReportGenerateSync.onSuccess(reportId, finalFilePath);
+            com.myreport.service.SimpleReportGenerateSync.onSuccess(reportId, finalFilePath);
         } catch (Exception e) {
             ExceptionUtil.collectProcessInformation(overallSetting, e, "word生成");
             RedisFileStateUtil.fileUpdateProgress(strDownloaderKey, TimeUtil.getReportCreateTime(), TimeUtil.getConsumeTime(overallSetting), 0, "", 4);
             com.myreport.service.ManagedReportGenerateSync.onFailure(reportId, e.getMessage());
+            com.myreport.service.SimpleReportGenerateSync.onFailure(reportId, e.getMessage());
         } finally {
             RedisTemplate.delete(String.format(Constant.RedisKey.REPORT_LOCK, reportId));
             deleteTemFile(mergeFileToken, overallSetting);

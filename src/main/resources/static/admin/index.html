@@ -484,6 +484,7 @@
     <button type="button" class="nav-btn" data-panel="data">数据管理</button>
     <button type="button" class="nav-btn" data-panel="template">模版管理</button>
     <button type="button" class="nav-btn" data-panel="report">报告管理</button>
+    <button type="button" class="nav-btn" data-panel="simple-report">简化报告</button>
   </aside>
 
   <main>
@@ -509,6 +510,7 @@
             <li><strong>数据管理</strong>：导入与查看就业去向</li>
             <li><strong>模版管理</strong>：配置章节树与指标字段</li>
             <li><strong>报告管理</strong>：绑定学校/模版并一键生成下载</li>
+            <li><strong>简化报告</strong>：多数据接口 + 样式 → 计划确认 → 出 Word</li>
           </ul>
         </div>
       </div>
@@ -766,6 +768,43 @@
         </div>
       </div>
     </section>
+
+    <section id="panel-simple-report" class="panel hidden">
+      <div class="head">
+        <div>
+          <h1>简化报告</h1>
+          <p class="desc">配置多数据接口与渲染样式；生成计划 → 确认 → 异步出 Word 并落交付目录</p>
+        </div>
+        <div class="toolbar">
+          <button type="button" class="primary-btn" id="srCreateBtn">新建</button>
+          <button type="button" class="ghost-btn" id="srRefreshBtn">刷新</button>
+        </div>
+      </div>
+      <div id="srMsg" class="msg"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>名称</th>
+              <th>交付目录</th>
+              <th>区块数</th>
+              <th>状态</th>
+              <th>更新时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="srBody"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span id="srMeta">—</span>
+        <div class="btns">
+          <button type="button" class="ghost-btn" id="srPrev">上一页</button>
+          <button type="button" class="ghost-btn" id="srNext">下一页</button>
+        </div>
+      </div>
+    </section>
   </main>
 
   <div id="tplStructModal" class="modal-mask" aria-hidden="true">
@@ -857,6 +896,41 @@
     </div>
   </div>
 
+  <div id="srModal" class="modal-mask form-layer" aria-hidden="true">
+    <div class="modal modal-lg">
+      <h3 id="srModalTitle">新建简化报告</h3>
+      <div id="srModalMsg" class="msg"></div>
+      <div class="form-row">
+        <label>名称</label>
+        <input id="srName" type="text" placeholder="必填" />
+      </div>
+      <div class="form-row">
+        <label>交付目录（相对根，无 ../）</label>
+        <input id="srDeliveryDir" type="text" placeholder="如 simple/weekly" />
+      </div>
+      <div class="form-row">
+        <label>通知邮箱（生成成功发附件；多个用逗号分隔；需配置 QQ SMTP）</label>
+        <input id="srNotifyEmail" type="text" placeholder="如 yourname@qq.com" />
+      </div>
+      <div class="form-row">
+        <label>区块（每行：标题|METHOD|URL|STYLE）</label>
+        <textarea id="srBlocksText" rows="6" style="width:100%;font-family:ui-monospace,monospace;font-size:12px"
+          placeholder="学院人数|GET|http://127.0.0.1:9091/demo/stat/by-college|BAR&#10;去向分布|GET|http://127.0.0.1:9091/demo/stat/by-destination|TABLE"></textarea>
+      </div>
+      <div class="form-row">
+        <label>生成计划诉求（可选，点「生成计划」时用）</label>
+        <input id="srUserPrompt" type="text" placeholder="如：本周概况" />
+      </div>
+      <pre id="srPlanPreview" style="display:none;max-height:220px;overflow:auto;background:#f6f7f9;padding:0.75rem;border-radius:8px;font-size:12px;white-space:pre-wrap"></pre>
+      <div class="modal-actions">
+        <button type="button" class="ghost-btn" id="srModalCancel">关闭</button>
+        <button type="button" class="ghost-btn" id="srPlanBtn">生成计划</button>
+        <button type="button" class="primary-btn" id="srConfirmBtn" style="display:none">确认生成 Word</button>
+        <button type="button" class="primary-btn" id="srModalOk">保存配置</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     (function () {
       var schoolPage = 0;
@@ -878,6 +952,8 @@
       var tplTempSeq = 0;
       var tplDirty = false;
       var tplModalSubmit = null;
+      /** [{ value, label }] from GET /report-template/stat-fields */
+      var tplStatFieldOptions = null;
 
       function $(id) { return document.getElementById(id); }
 
@@ -904,6 +980,7 @@
         $("panel-data").classList.toggle("hidden", name !== "data");
         $("panel-template").classList.toggle("hidden", name !== "template");
         $("panel-report").classList.toggle("hidden", name !== "report");
+        $("panel-simple-report").classList.toggle("hidden", name !== "simple-report");
         var buttons = document.querySelectorAll(".nav-btn");
         for (var i = 0; i < buttons.length; i++) {
           buttons[i].classList.toggle("active", buttons[i].getAttribute("data-panel") === name);
@@ -914,6 +991,7 @@
           loadTemplates();
         }
         if (name === "report") loadManagedReports();
+        if (name === "simple-report") loadSimpleReports();
         if (history.replaceState) {
           history.replaceState(null, "", "#" + name);
         }
@@ -1633,13 +1711,37 @@
           });
       }
 
+      function loadStatFieldOptions() {
+        return fetch("/report-template/stat-fields")
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            if (body.code !== 0 || !body.fields) {
+              tplStatFieldOptions = null;
+              throw new Error(body.message || "统计字段字典加载失败");
+            }
+            tplStatFieldOptions = body.fields;
+            return tplStatFieldOptions;
+          });
+      }
+
+      function isKnownStatFieldValue(value) {
+        if (!value || !tplStatFieldOptions) return false;
+        for (var i = 0; i < tplStatFieldOptions.length; i++) {
+          if (tplStatFieldOptions[i].value === value) return true;
+        }
+        return false;
+      }
+
       function openStructureEditor(id) {
         tplEditingId = id;
         tplTempSeq = 0;
         tplDirty = false;
-        fetch("/report-template/detail?id=" + id)
-          .then(function (r) { return r.json(); })
-          .then(function (body) {
+        Promise.all([
+          fetch("/report-template/detail?id=" + id).then(function (r) { return r.json(); }),
+          loadStatFieldOptions()
+        ])
+          .then(function (pair) {
+            var body = pair[0];
             if (body.code !== 0) {
               setMsg($("tplMsg"), body.message || "加载失败", false);
               return;
@@ -1650,8 +1752,8 @@
             renderTplTree();
             openStructModal();
           })
-          .catch(function () {
-            setMsg($("tplMsg"), "请求失败", false);
+          .catch(function (err) {
+            setMsg($("tplMsg"), (err && err.message) ? err.message : "请求失败", false);
           });
       }
 
@@ -1738,9 +1840,25 @@
       function metricFormHtml(n) {
         n = n || {};
         var isTable = n.displayType === "TABLE";
+        var cur = n.statField || "";
+        var opts = tplStatFieldOptions || [];
+        var known = false;
+        var selectHtml = '<select id="fStat"><option value="">请选择统计字段</option>';
+        for (var i = 0; i < opts.length; i++) {
+          var o = opts[i];
+          var sel = cur && o.value === cur;
+          if (sel) known = true;
+          selectHtml += '<option value="' + escapeHtml(o.value) + '"' + (sel ? " selected" : "")
+            + ' title="' + escapeHtml(o.value) + '">' + escapeHtml(o.label) + "</option>";
+        }
+        if (cur && !known) {
+          selectHtml += '<option value="' + escapeHtml(cur) + '" selected>未知字段('
+            + escapeHtml(cur) + ")</option>";
+        }
+        selectHtml += "</select>";
         return ''
           + '<div class="form-row"><label>指标名称</label><input id="fName" value="' + escapeHtml(n.name || "") + '" /></div>'
-          + '<div class="form-row"><label>统计字段</label><input id="fStat" value="' + escapeHtml(n.statField || "") + '" placeholder="数据集字段名" /></div>'
+          + '<div class="form-row"><label>统计字段</label>' + selectHtml + "</div>"
           + '<div class="form-row"><label>输出形式</label><select id="fFormat">'
           + '<option value="PERCENT"' + (n.valueFormat === "PERCENT" ? " selected" : "") + ">百分比</option>"
           + '<option value="COUNT"' + (n.valueFormat === "COUNT" ? " selected" : "") + ">数量</option>"
@@ -1754,6 +1872,23 @@
           + '<option value="PIE"' + (n.chartStyle === "PIE" ? " selected" : "") + ">饼图</option>"
           + '<option value="LINE"' + (n.chartStyle === "LINE" ? " selected" : "") + ">折线图</option>"
           + "</select></div>";
+      }
+
+      function readMetricStatFieldOrWarn() {
+        if (!tplStatFieldOptions || !tplStatFieldOptions.length) {
+          setMsg($("tplStructMsg"), "统计字段字典未加载，请关闭后重新打开编辑结构", false);
+          return null;
+        }
+        var stat = $("fStat").value.trim();
+        if (!stat) {
+          setMsg($("tplStructMsg"), "名称与统计字段必填", false);
+          return null;
+        }
+        if (!isKnownStatFieldValue(stat)) {
+          setMsg($("tplStructMsg"), "请重新选择合法的统计字段", false);
+          return null;
+        }
+        return stat;
       }
 
       function bindMetricDisplayToggle() {
@@ -1871,11 +2006,16 @@
         if (act === "add-metric") {
           var p = findNodeById(tplTreeData, id);
           if (!p) return;
+          if (!tplStatFieldOptions || !tplStatFieldOptions.length) {
+            setMsg($("tplStructMsg"), "统计字段字典未加载，请关闭后重新打开编辑结构", false);
+            return;
+          }
           openTplModal("添加指标", metricFormHtml(), function () {
             var name = $("fName").value.trim();
-            var stat = $("fStat").value.trim();
+            var stat = readMetricStatFieldOrWarn();
             var display = $("fDisplay").value;
-            if (!name || !stat) { setMsg($("tplStructMsg"), "名称与统计字段必填", false); return false; }
+            if (!name) { setMsg($("tplStructMsg"), "名称与统计字段必填", false); return false; }
+            if (!stat) return false;
             if (!p.children) p.children = [];
             p.children.push({
               id: nextTempId(),
@@ -1909,11 +2049,16 @@
               return true;
             });
           } else {
+            if (!tplStatFieldOptions || !tplStatFieldOptions.length) {
+              setMsg($("tplStructMsg"), "统计字段字典未加载，请关闭后重新打开编辑结构", false);
+              return;
+            }
             openTplModal("编辑指标", metricFormHtml(node), function () {
               var name = $("fName").value.trim();
-              var stat = $("fStat").value.trim();
+              var stat = readMetricStatFieldOrWarn();
               var display = $("fDisplay").value;
-              if (!name || !stat) { setMsg($("tplStructMsg"), "名称与统计字段必填", false); return false; }
+              if (!name) { setMsg($("tplStructMsg"), "名称与统计字段必填", false); return false; }
+              if (!stat) return false;
               node.name = name;
               node.statField = stat;
               node.valueFormat = $("fFormat").value;
@@ -2157,8 +2302,299 @@
         }
       });
 
+      var srPage = 0;
+      var srEditId = null;
+      var srPendingRunId = null;
+
+      function srStatusLabel(s) {
+        return s === 1 ? "启用" : "停用";
+      }
+
+      function parseSrBlocksText(text) {
+        var lines = (text || "").split(/\r?\n/);
+        var blocks = [];
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].trim();
+          if (!line) continue;
+          var parts = line.split("|");
+          if (parts.length < 4) {
+            throw new Error("第 " + (i + 1) + " 行格式须为：标题|METHOD|URL|STYLE");
+          }
+          blocks.push({
+            title: parts[0].trim(),
+            httpMethod: parts[1].trim(),
+            url: parts[2].trim(),
+            renderStyle: parts[3].trim()
+          });
+        }
+        return blocks;
+      }
+
+      function blocksToText(blocks) {
+        if (!blocks || !blocks.length) return "";
+        return blocks.map(function (b) {
+          return [b.title, b.httpMethod, b.url, b.renderStyle].join("|");
+        }).join("\n");
+      }
+
+      function openSrModal(id) {
+        srEditId = id || null;
+        srPendingRunId = null;
+        $("srModalTitle").textContent = id ? "编辑简化报告" : "新建简化报告";
+        $("srPlanPreview").style.display = "none";
+        $("srPlanPreview").textContent = "";
+        $("srConfirmBtn").style.display = "none";
+        $("srUserPrompt").value = "";
+        setMsg($("srModalMsg"), "", true);
+        if (!id) {
+          $("srName").value = "";
+          $("srDeliveryDir").value = "simple/demo";
+          $("srNotifyEmail").value = "";
+          $("srBlocksText").value = "";
+          $("srModal").classList.add("show");
+          $("srModal").setAttribute("aria-hidden", "false");
+          return;
+        }
+        fetch("/simple-report/detail?id=" + id)
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            if (body.code !== 0) {
+              setMsg($("srMsg"), body.message || "加载失败", false);
+              return;
+            }
+            $("srName").value = body.name || "";
+            $("srDeliveryDir").value = body.deliveryDir || "";
+            $("srNotifyEmail").value = body.notifyEmail || "";
+            $("srBlocksText").value = blocksToText(body.blocks);
+            $("srModal").classList.add("show");
+            $("srModal").setAttribute("aria-hidden", "false");
+            return restoreLatestPlan(id);
+          });
+      }
+
+      /** 回显最近一次计划的诉求 / planMd（优先待确认） */
+      function restoreLatestPlan(reportId) {
+        return fetch("/simple-report/runs/list?reportId=" + reportId + "&page=0&size=5")
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            if (body.code !== 0 || !body.content || !body.content.length) {
+              return;
+            }
+            var pick = null;
+            for (var i = 0; i < body.content.length; i++) {
+              if (body.content[i].runStatus === 1) {
+                pick = body.content[i];
+                break;
+              }
+            }
+            if (!pick) {
+              pick = body.content[0];
+            }
+            if (!pick || !pick.runId) {
+              return;
+            }
+            return fetch("/simple-report/runs/detail?runId=" + pick.runId)
+              .then(function (r) { return r.json(); })
+              .then(function (detail) {
+                if (detail.code !== 0) {
+                  return;
+                }
+                $("srUserPrompt").value = detail.userPrompt || "";
+                if (detail.planMd) {
+                  $("srPlanPreview").style.display = "block";
+                  $("srPlanPreview").textContent = detail.planMd;
+                }
+                if (detail.runStatus === 1) {
+                  srPendingRunId = detail.runId;
+                  $("srConfirmBtn").style.display = "inline-block";
+                  setMsg($("srModalMsg"), "已回显待确认计划（runId=" + detail.runId + "）", true);
+                } else if (detail.userPrompt) {
+                  setMsg($("srModalMsg"), "已回显最近一次诉求", true);
+                }
+              });
+          });
+      }
+
+      function closeSrModal() {
+        $("srModal").classList.remove("show");
+        $("srModal").setAttribute("aria-hidden", "true");
+      }
+
+      function loadSimpleReports() {
+        fetch("/simple-report/list?page=" + srPage + "&size=20")
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            if (body.code !== 0) {
+              setMsg($("srMsg"), body.message || "查询失败", false);
+              return;
+            }
+            var tb = $("srBody");
+            tb.innerHTML = "";
+            (body.content || []).forEach(function (row) {
+              var tr = document.createElement("tr");
+              tr.innerHTML =
+                "<td>" + row.id + "</td>" +
+                "<td>" + (row.name || "") + "</td>" +
+                "<td>" + (row.deliveryDir || "") + "</td>" +
+                "<td>" + (row.blockCount != null ? row.blockCount : "") + "</td>" +
+                "<td>" + srStatusLabel(row.status) + "</td>" +
+                "<td>" + fmtTime(row.updateTime) + "</td>" +
+                "<td class=\"ops\"></td>";
+              var ops = tr.querySelector(".ops");
+              function addBtn(label, fn) {
+                var b = document.createElement("button");
+                b.type = "button";
+                b.className = "ghost-btn";
+                b.textContent = label;
+                b.addEventListener("click", fn);
+                ops.appendChild(b);
+              }
+              addBtn("编辑", function () { openSrModal(row.id); });
+              addBtn("计划", function () {
+                openSrModal(row.id);
+                setTimeout(function () { $("srPlanBtn").click(); }, 400);
+              });
+              addBtn("删除", function () {
+                if (!confirm("确认删除？")) return;
+                postJson("/simple-report/delete", { id: row.id }).then(function (res) {
+                  if (res.code !== 0) {
+                    setMsg($("srMsg"), res.message || "删除失败", false);
+                    return;
+                  }
+                  setMsg($("srMsg"), "已删除", true);
+                  loadSimpleReports();
+                });
+              });
+              tb.appendChild(tr);
+            });
+            $("srMeta").textContent = "第 " + (body.page + 1) + " / " + Math.max(body.totalPages, 1)
+              + " 页，共 " + body.totalElements + " 条";
+          });
+      }
+
+      $("srCreateBtn").addEventListener("click", function () { openSrModal(null); });
+      $("srRefreshBtn").addEventListener("click", function () { loadSimpleReports(); });
+      $("srPrev").addEventListener("click", function () {
+        if (srPage > 0) { srPage--; loadSimpleReports(); }
+      });
+      $("srNext").addEventListener("click", function () {
+        srPage++;
+        loadSimpleReports();
+      });
+      $("srModalCancel").addEventListener("click", closeSrModal);
+
+      $("srModalOk").addEventListener("click", function () {
+        var name = $("srName").value.trim();
+        var deliveryDir = $("srDeliveryDir").value.trim();
+        var notifyEmail = $("srNotifyEmail").value.trim();
+        var blocks;
+        try {
+          blocks = parseSrBlocksText($("srBlocksText").value);
+        } catch (e) {
+          setMsg($("srModalMsg"), e.message, false);
+          return;
+        }
+        if (!name || !deliveryDir) {
+          setMsg($("srModalMsg"), "名称与交付目录必填", false);
+          return;
+        }
+        var req = srEditId
+          ? postJson("/simple-report/update", {
+              id: srEditId,
+              name: name,
+              deliveryDir: deliveryDir,
+              notifyEmail: notifyEmail
+            }).then(function (res) {
+                if (res.code !== 0) throw new Error(res.message || "更新失败");
+                return postJson("/simple-report/save-blocks", { id: srEditId, blocks: blocks });
+              })
+          : postJson("/simple-report/create", {
+              name: name,
+              deliveryDir: deliveryDir,
+              notifyEmail: notifyEmail,
+              blocks: blocks
+            });
+        req.then(function (res) {
+          if (res.code !== 0) {
+            setMsg($("srModalMsg"), res.message || "保存失败", false);
+            return;
+          }
+          if (!srEditId && res.id) srEditId = res.id;
+          setMsg($("srModalMsg"), "保存成功", true);
+          setMsg($("srMsg"), "保存成功", true);
+          loadSimpleReports();
+        }).catch(function (e) {
+          setMsg($("srModalMsg"), e.message || "保存失败", false);
+        });
+      });
+
+      $("srPlanBtn").addEventListener("click", function () {
+        if (!srEditId) {
+          setMsg($("srModalMsg"), "请先保存配置", false);
+          return;
+        }
+        var promptVal = $("srUserPrompt").value.trim();
+        postJson("/simple-report/plan", {
+          id: srEditId,
+          userPrompt: promptVal
+        }).then(function (res) {
+          if (res.code !== 0) {
+            setMsg($("srModalMsg"), res.message || "计划失败", false);
+            return;
+          }
+          srPendingRunId = res.runId;
+          $("srUserPrompt").value = (res.userPrompt != null && res.userPrompt !== "")
+            ? res.userPrompt
+            : promptVal;
+          $("srPlanPreview").style.display = "block";
+          $("srPlanPreview").textContent = res.planMd || "";
+          $("srConfirmBtn").style.display = "inline-block";
+          setMsg($("srModalMsg"), "计划已生成（runId=" + res.runId + "），请确认后生成 Word", true);
+        });
+      });
+
+      $("srConfirmBtn").addEventListener("click", function () {
+        if (!srPendingRunId) {
+          setMsg($("srModalMsg"), "无待确认计划", false);
+          return;
+        }
+        if (!confirm("确认按计划生成 Word？")) return;
+        postJson("/simple-report/runs/confirm", { runId: srPendingRunId }).then(function (res) {
+          if (res.code !== 0) {
+            setMsg($("srModalMsg"), res.message || "提交失败", false);
+            return;
+          }
+          setMsg($("srModalMsg"), "已提交生成，engineReportId=" + res.engineReportId + "，请稍后在运行详情查看", true);
+          pollSrRun(srPendingRunId);
+        });
+      });
+
+      function pollSrRun(runId) {
+        var n = 0;
+        function tick() {
+          fetch("/simple-report/runs/detail?runId=" + runId)
+            .then(function (r) { return r.json(); })
+            .then(function (body) {
+              if (body.code !== 0) return;
+              if (body.runStatus === 3) {
+                setMsg($("srModalMsg"), "生成成功：" + (body.deliveryPath || body.filePath || ""), true);
+                setMsg($("srMsg"), "简化报告生成成功 runId=" + runId, true);
+                return;
+              }
+              if (body.runStatus === 4) {
+                setMsg($("srModalMsg"), "生成失败：" + (body.failMessage || ""), false);
+                return;
+              }
+              n++;
+              if (n < 60) setTimeout(tick, 2000);
+            });
+        }
+        setTimeout(tick, 1500);
+      }
+
       var hash = (location.hash || "#intro").replace("#", "");
-      if (hash !== "intro" && hash !== "school" && hash !== "data" && hash !== "template" && hash !== "report") {
+      if (hash !== "intro" && hash !== "school" && hash !== "data" && hash !== "template"
+          && hash !== "report" && hash !== "simple-report") {
         hash = "intro";
       }
       loadSchoolOptions().then(function () { switchPanel(hash); });

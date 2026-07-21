@@ -36,9 +36,28 @@ spring:
 # 模版封面/底图上传目录（其下会建 report-template/{id}/）
 myreport:
   template-upload-dir: ${REPORT_TEMPLATE_UPLOAD_DIR:}
+  simple-report:
+    delivery-root: ${SIMPLE_REPORT_DELIVERY_ROOT:}
+    connect-timeout-ms: 10000
+    read-timeout-ms: 30000
+    max-response-bytes: 2097152
+    # 本地联调默认 true；勿用空环境变量覆盖（空串会导致绑定失败回退 false）
+    allow-loopback: true
+    # 生产建议填写，如 [example.com]；空列表则仅禁止内网/回环（allow-loopback=false 时）
+    allowed-host-suffixes: []
   ai:
     dashscope:
       api-key: ${DASHSCOPE_API_KEY:}
       model: ${DASHSCOPE_MODEL:qwen-plus}
     chart-analyst:
       enabled: ${CHART_ANALYST_ENABLED:true}
+  # QQ 邮箱 SMTP（授权码非登录密码）；enabled=true 且配齐账号后，简化报告成功会发附件
+  mail:
+    enabled: ${MAIL_ENABLED:true}
+    host: ${MAIL_HOST:smtp.qq.com}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:875657453@qq.com}
+    password: ${MAIL_PASSWORD:maxtabdeuncobceg}
+    from-name: ${MAIL_FROM_NAME:MyReport}
+    smtp-auth: true
+    ssl-enable: true
