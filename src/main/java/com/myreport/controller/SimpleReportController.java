@@ -54,9 +54,14 @@ public class SimpleReportController {
         Map<String, Object> result = new HashMap<String, Object>();
         try {
             Page<SimpleReport> data = simpleReportService.list(page, size, status);
+            List<Long> ids = new ArrayList<Long>();
+            for (SimpleReport r : data.getContent()) {
+                ids.add(r.getId());
+            }
+            Map<Long, SimpleReportRun> displayMap = simpleReportService.resolveDisplayRuns(ids);
             List<Map<String, Object>> content = new ArrayList<Map<String, Object>>();
             for (SimpleReport r : data.getContent()) {
-                content.add(simpleReportService.toListItem(r));
+                content.add(simpleReportService.toListItem(r, displayMap.get(r.getId()), true));
             }
             result.put("code", 0);
             result.put("message", "ok");

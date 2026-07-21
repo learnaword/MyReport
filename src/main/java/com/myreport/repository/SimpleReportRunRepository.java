@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +26,13 @@ public interface SimpleReportRunRepository extends JpaRepository<SimpleReportRun
 
     List<SimpleReportRun> findByReportIdAndRunStatusOrderByFinishedTimeDescIdDesc(
             Long reportId, Integer runStatus, Pageable pageable);
+
+    List<SimpleReportRun> findByReportIdAndRunStatusInOrderByCreateTimeDescIdDesc(
+            Long reportId, Collection<Integer> runStatuses, Pageable pageable);
+
+    List<SimpleReportRun> findByReportIdOrderByCreateTimeDescIdDesc(Long reportId, Pageable pageable);
+
+    List<SimpleReportRun> findByReportIdInOrderByCreateTimeDescIdDesc(Collection<Long> reportIds);
 
     Page<SimpleReportRun> findAllByOrderByCreateTimeDesc(Pageable pageable);
 }

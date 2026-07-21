@@ -140,6 +140,21 @@
     .msg { font-size: 0.86rem; min-height: 1.2rem; }
     .msg.ok { color: var(--ok); }
     .msg.err { color: var(--danger); }
+    .sr-gen-badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+    .sr-gen-none { background: #e8edf3; color: #5b6b80; }
+    .sr-gen-pending { background: #fff3d6; color: #9a6700; }
+    .sr-gen-running { background: #dceaff; color: #0063E6; }
+    .sr-gen-ok { background: #d8f3e2; color: #1b7a3d; }
+    .sr-gen-fail { background: #f5e4e4; color: #9b2c2c; }
+    .sr-gen-cancel { background: #e2e6eb; color: #4a5568; }
     .progress-wrap {
       display: none;
       margin: 0.35rem 0 0.75rem;
@@ -327,7 +342,7 @@
       font-size: 0.95rem;
       line-height: 1.55;
       opacity: 0.92;
-      max-width: 46rem;
+      max-width:60rem;
     }
     .intro-hero a {
       color: #cfe4ff;
@@ -582,8 +597,8 @@
   <main>
     <section id="panel-intro" class="panel">
       <div class="intro-hero">
-        <h1>MyReport 报告生成平台</h1>
-        <p>面向高校就业质量报告场景：默认学校为武汉大学。导入毕业生去向数据，配置报告模版与指标，一键聚合生成 Word（.docx）。图表章节可由 AI 统计分析师自动撰写解读文案。</p>
+        <h1>报告生成平台</h1>
+        <p>报告生成场景，导入采集到的数据，配置报告模版与指标，一键聚合生成 Word（.docx）。图表章节可由 AI 统计分析师自动撰写解读文案。</p>
         <p>GitHub：<a href="https://github.com/learnaword/MyReport" target="_blank" rel="noopener noreferrer">https://github.com/learnaword/MyReport</a></p>
       </div>
       <div class="intro-grid">
@@ -756,7 +771,7 @@
       <div class="head">
         <div>
           <h1>数据管理</h1>
-          <p class="desc">毕业生就业去向（默认武汉大学）；Excel 可含「学校名称」列但导入时忽略并归属本校；唯一键为学号+毕业年份（校内）</p>
+          <p class="desc">将采集的数据落库；Excel 可含「学校名称」列但导入时忽略并归属本校；唯一键为学号+毕业年份（校内）</p>
         </div>
         <div class="toolbar">
           <label class="file-btn">
@@ -847,8 +862,8 @@
     <section id="panel-report" class="panel hidden">
       <div class="head">
         <div>
-          <h1>报告管理</h1>
-          <p class="desc">配置报告名称与模版（学校固定武汉大学）；一键按模版指标聚合并生成 Word</p>
+          <h1>完整报告</h1>
+          <p class="desc">配置报告名称与模版；一键按模版指标聚合并生成 Word</p>
         </div>
         <div class="toolbar">
           <button type="button" class="primary-btn" id="mrCreateBtn">新建报告</button>
@@ -902,7 +917,8 @@
               <th>名称</th>
               <th>交付目录</th>
               <th>区块数</th>
-              <th>状态</th>
+              <th>配置状态</th>
+              <th>生成状态</th>
               <th>更新时间</th>
               <th>操作</th>
             </tr>
@@ -1030,6 +1046,10 @@
         <label>生成计划诉求（可选，点「生成计划」时用）</label>
         <input id="srUserPrompt" type="text" placeholder="如：本周概况" />
       </div>
+      <div id="srRunStatusWrap" class="form-row" style="display:none">
+        <label>当前运行状态</label>
+        <div id="srRunStatus"></div>
+      </div>
       <pre id="srPlanPreview" style="display:none;max-height:220px;overflow:auto;background:#f6f7f9;padding:0.75rem;border-radius:8px;font-size:12px;white-space:pre-wrap"></pre>
       <div class="modal-actions">
         <button type="button" class="ghost-btn" id="srModalCancel">关闭</button>
@@ -1077,6 +1097,9 @@
 
       function switchPanel(name) {
         if (name === "school") name = "data";
+        if (name !== "simple-report") {
+          stopSrListPoll();
+        }
         $("panel-intro").classList.toggle("hidden", name !== "intro");
         $("panel-data").classList.toggle("hidden", name !== "data");
         $("panel-template").classList.toggle("hidden", name !== "template");
@@ -2286,9 +2309,51 @@
       var srPage = 0;
       var srEditId = null;
       var srPendingRunId = null;
+      var srListPollTimer = null;
 
-      function srStatusLabel(s) {
+      function srConfigStatusLabel(s) {
         return s === 1 ? "启用" : "停用";
+      }
+
+      function srGenerateStatusMeta(runStatus) {
+        if (runStatus == null) {
+          return { label: "未生成", cls: "sr-gen-none" };
+        }
+        if (runStatus === 1) return { label: "待确认", cls: "sr-gen-pending" };
+        if (runStatus === 2) return { label: "生成中", cls: "sr-gen-running" };
+        if (runStatus === 3) return { label: "成功", cls: "sr-gen-ok" };
+        if (runStatus === 4) return { label: "失败", cls: "sr-gen-fail" };
+        if (runStatus === 5) return { label: "已取消", cls: "sr-gen-cancel" };
+        return { label: "未知(" + runStatus + ")", cls: "sr-gen-none" };
+      }
+
+      function srGenerateStatusBadgeHtml(runStatus, failMessage) {
+        var meta = srGenerateStatusMeta(runStatus);
+        var title = meta.label;
+        if (runStatus === 4 && failMessage) {
+          title = failMessage;
+        }
+        return "<span class=\"sr-gen-badge " + meta.cls + "\" title=\""
+          + String(title).replace(/"/g, "&quot;") + "\">" + meta.label + "</span>";
+      }
+
+      function stopSrListPoll() {
+        if (srListPollTimer) {
+          clearInterval(srListPollTimer);
+          srListPollTimer = null;
+        }
+      }
+
+      function ensureSrListPoll(hasGenerating) {
+        if (hasGenerating) {
+          if (!srListPollTimer) {
+            srListPollTimer = setInterval(function () {
+              loadSimpleReports();
+            }, 3000);
+          }
+        } else {
+          stopSrListPoll();
+        }
       }
 
       function parseSrBlocksText(text) {
@@ -2318,6 +2383,16 @@
         }).join("\n");
       }
 
+      function setSrRunStatus(runStatus, failMessage) {
+        $("srRunStatusWrap").style.display = "block";
+        $("srRunStatus").innerHTML = srGenerateStatusBadgeHtml(runStatus, failMessage);
+      }
+
+      function clearSrRunStatus() {
+        $("srRunStatusWrap").style.display = "none";
+        $("srRunStatus").innerHTML = "";
+      }
+
       function openSrModal(id) {
         srEditId = id || null;
         srPendingRunId = null;
@@ -2327,6 +2402,7 @@
         $("srConfirmBtn").style.display = "none";
         $("srDownloadBtn").style.display = "none";
         $("srUserPrompt").value = "";
+        clearSrRunStatus();
         setMsg($("srModalMsg"), "", true);
         if (!id) {
           $("srName").value = "";
@@ -2350,6 +2426,7 @@
             $("srBlocksText").value = blocksToText(body.blocks);
             $("srModal").classList.add("show");
             $("srModal").setAttribute("aria-hidden", "false");
+            setSrRunStatus(body.latestRunStatus, body.latestFailMessage);
             return restoreLatestPlan(id);
           });
       }
@@ -2386,6 +2463,7 @@
                   $("srPlanPreview").style.display = "block";
                   $("srPlanPreview").textContent = detail.planMd;
                 }
+                setSrRunStatus(detail.runStatus, detail.failMessage);
                 if (detail.runStatus === 1) {
                   srPendingRunId = detail.runId;
                   $("srConfirmBtn").style.display = "inline-block";
@@ -2416,14 +2494,17 @@
             }
             var tb = $("srBody");
             tb.innerHTML = "";
+            var hasGenerating = false;
             (body.content || []).forEach(function (row) {
+              if (row.latestRunStatus === 2) hasGenerating = true;
               var tr = document.createElement("tr");
               tr.innerHTML =
                 "<td>" + row.id + "</td>" +
                 "<td>" + (row.name || "") + "</td>" +
                 "<td>" + (row.deliveryDir || "") + "</td>" +
                 "<td>" + (row.blockCount != null ? row.blockCount : "") + "</td>" +
-                "<td>" + srStatusLabel(row.status) + "</td>" +
+                "<td>" + srConfigStatusLabel(row.status) + "</td>" +
+                "<td>" + srGenerateStatusBadgeHtml(row.latestRunStatus, row.latestFailMessage) + "</td>" +
                 "<td>" + fmtTime(row.updateTime) + "</td>" +
                 "<td class=\"ops\"></td>";
               var ops = tr.querySelector(".ops");
@@ -2454,6 +2535,7 @@
               });
               tb.appendChild(tr);
             });
+            ensureSrListPoll(hasGenerating);
             $("srMeta").textContent = "第 " + (body.page + 1) + " / " + Math.max(body.totalPages, 1)
               + " 页，共 " + body.totalElements + " 条";
           });
@@ -2537,7 +2619,9 @@
           $("srPlanPreview").textContent = res.planMd || "";
           $("srConfirmBtn").style.display = "inline-block";
           $("srDownloadBtn").style.display = "none";
+          setSrRunStatus(1, null);
           setMsg($("srModalMsg"), "计划已生成（runId=" + res.runId + "），请确认后生成 Word", true);
+          loadSimpleReports();
         });
       });
 
@@ -2553,7 +2637,9 @@
             return;
           }
           $("srDownloadBtn").style.display = "none";
+          setSrRunStatus(2, null);
           setMsg($("srModalMsg"), "已提交生成，engineReportId=" + res.engineReportId + "，请稍后在运行详情查看", true);
+          loadSimpleReports();
           pollSrRun(srPendingRunId);
         });
       });
@@ -2574,6 +2660,7 @@
             .then(function (body) {
               if (body.code !== 0) return;
               if (body.runStatus === 3) {
+                setSrRunStatus(3, null);
                 setMsg($("srModalMsg"), "生成成功：" + (body.deliveryPath || body.filePath || ""), true);
                 setMsg($("srMsg"), "简化报告生成成功 runId=" + runId, true);
                 $("srDownloadBtn").style.display = "inline-block";
@@ -2582,9 +2669,12 @@
                 return;
               }
               if (body.runStatus === 4) {
+                setSrRunStatus(4, body.failMessage);
                 setMsg($("srModalMsg"), "生成失败：" + (body.failMessage || ""), false);
+                loadSimpleReports();
                 return;
               }
+              setSrRunStatus(body.runStatus, body.failMessage);
               n++;
               if (n < 60) setTimeout(tick, 2000);
             });

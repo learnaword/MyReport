@@ -27,7 +27,7 @@
 | GET | /simple-report/runs/download | 按 runId 下载 `.docx` |
 | GET | /simple-report/download | 按配置 id 下载最近成功稿 |
 
-列表含 `canDownload` / `latestSuccessRunId`。下载对接详见 [`docs/simple_report_download.md`](simple_report_download.md)。
+列表含 `canDownload` / `latestSuccessRunId`，以及展示用生成态 `latestRunStatus` / `latestRunId` / `latestFailMessage`（与配置启用字段 `status` 分离）。生成状态对接详见 [`docs/simple_report_status.md`](simple_report_status.md)；下载对接详见 [`docs/simple_report_download.md`](simple_report_download.md)。
 
 响应风格：`code`（0 成功 / -1 失败）+ `message`。
 
@@ -80,7 +80,11 @@ const conf = await fetch("/simple-report/runs/confirm", {
 ### 3. 进度 / 状态
 
 ```text
-库：GET /simple-report/runs/detail?runId=
+配置列表 / 详情：latestRunStatus（null未生成 / 1待确认 / 2生成中 / 3成功 / 4失败 / 5取消）
+  聚合：该配置下最近一次运行（按创建时间）
+  详见 docs/simple_report_status.md
+
+单次运行：GET /simple-report/runs/detail?runId=
   runStatus: 1待确认 / 2生成中 / 3成功 / 4失败 / 5取消
 
 Redis：report:list:{engineReportId}

@@ -32,6 +32,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ import java.util.Optional;
  * AI 简化报告：配置 + plan/confirm + 生成编排。
  *
  * @see docs/ai_simple_report/API设计.md
+ * @see docs/simple_report_status/API设计.md
  */
 @Service
 public class SimpleReportService {
@@ -88,6 +90,14 @@ public class SimpleReportService {
     }
 
     public Map<String, Object> toListItem(SimpleReport r) {
+        return toListItem(r, null, false);
+    }
+
+    /**
+     * @param displayRunHint 展示用 run；可为 null（未生成）
+     * @param useProvidedDisplay true 时直接使用 hint（含 null）；false 时自行 resolve
+     */
+    public Map<String, Object> toListItem(SimpleReport r, SimpleReportRun displayRunHint, boolean useProvidedDisplay) {
         Map<String, Object> m = new HashMap<String, Object>();
         m.put("id", r.getId());
         m.put("name", r.getName());
@@ -100,9 +110,46 @@ public class SimpleReportService {
         SimpleReportRun latest = findLatestDownloadableRun(r.getId());
         m.put("canDownload", latest != null);
         m.put("latestSuccessRunId", latest != null ? latest.getId() : null);
+        SimpleReportRun display = useProvidedDisplay ? displayRunHint : resolveDisplayRun(r.getId());
+        putDisplayRunFields(m, display);
         m.put("createTime", r.getCreateTime());
         m.put("updateTime", r.getUpdateTime());
         return m;
+    }
+
+    /**
+     * 为本页配置批量解析「列表展示用」run，避免 N+1。每个 id 均有键（无 run 时值为 null）。
+     */
+    public Map<Long, SimpleReportRun> resolveDisplayRuns(Collection<Long> reportIds) {
+        Map<Long, SimpleReportRun> out = new HashMap<Long, SimpleReportRun>();
+        if (reportIds == null || reportIds.isEmpty()) {
+            return out;
+        }
+        for (Long id : reportIds) {
+            if (id != null) {
+                out.put(id, null);
+            }
+        }
+        List<SimpleReportRun> all = runRepository.findByReportIdInOrderByCreateTimeDescIdDesc(reportIds);
+        if (all == null || all.isEmpty()) {
+            return out;
+        }
+        Map<Long, List<SimpleReportRun>> byReport = new HashMap<Long, List<SimpleReportRun>>();
+        for (SimpleReportRun run : all) {
+            if (run == null || run.getReportId() == null) {
+                continue;
+            }
+            List<SimpleReportRun> list = byReport.get(run.getReportId());
+            if (list == null) {
+                list = new ArrayList<SimpleReportRun>();
+                byReport.put(run.getReportId(), list);
+            }
+            list.add(run);
+        }
+        for (Map.Entry<Long, List<SimpleReportRun>> e : byReport.entrySet()) {
+            out.put(e.getKey(), pickDisplayRun(e.getValue()));
+        }
+        return out;
     }
 
     public Map<String, Object> detail(Long id) {
@@ -123,6 +170,10 @@ public class SimpleReportService {
             blockMaps.add(toBlockMap(b));
         }
         m.put("blocks", blockMaps);
+        SimpleReportRun latest = findLatestDownloadableRun(id);
+        m.put("canDownload", latest != null);
+        m.put("latestSuccessRunId", latest != null ? latest.getId() : null);
+        putDisplayRunFields(m, resolveDisplayRun(id));
         return m;
     }
 
@@ -446,6 +497,56 @@ public class SimpleReportService {
             }
         }
         return null;
+    }
+
+    /**
+     * 列表/详情展示用 run：取该配置下最近一次运行（create_time DESC, id DESC）。
+     * 不再优先「待确认」——否则历史未确认计划会盖住更新的成功态。
+     *
+     * @see docs/simple_report_status/API设计.md
+     */
+    private SimpleReportRun resolveDisplayRun(Long reportId) {
+        if (reportId == null) {
+            return null;
+        }
+        PageRequest one = PageRequest.of(0, 1);
+        List<SimpleReportRun> any = runRepository.findByReportIdOrderByCreateTimeDescIdDesc(reportId, one);
+        if (any != null && !any.isEmpty()) {
+            return any.get(0);
+        }
+        return null;
+    }
+
+    /**
+     * runs 须已按 create_time DESC, id DESC 排序（同 report 内）；取第一条。
+     */
+    private SimpleReportRun pickDisplayRun(List<SimpleReportRun> runs) {
+        if (runs == null || runs.isEmpty()) {
+            return null;
+        }
+        for (SimpleReportRun run : runs) {
+            if (run != null) {
+                return run;
+            }
+        }
+        return null;
+    }
+
+    private void putDisplayRunFields(Map<String, Object> m, SimpleReportRun displayRun) {
+        if (displayRun == null) {
+            m.put("latestRunStatus", null);
+            m.put("latestRunId", null);
+            m.put("latestFailMessage", null);
+            return;
+        }
+        m.put("latestRunStatus", displayRun.getRunStatus());
+        m.put("latestRunId", displayRun.getId());
+        if (displayRun.getRunStatus() != null
+                && displayRun.getRunStatus().intValue() == SimpleReportRun.STATUS_FAILED) {
+            m.put("latestFailMessage", displayRun.getFailMessage());
+        } else {
+            m.put("latestFailMessage", null);
+        }
     }
 
     private boolean canDownload(SimpleReportRun run) {
