@@ -69,9 +69,55 @@
       cursor: pointer;
       font-size: 0.95rem;
       transition: background 0.15s ease;
+      width: 100%;
     }
     .nav-btn:hover { background: rgba(255,255,255,0.06); }
     .nav-btn.active { background: var(--sidebar-active); color: #fff; }
+    .nav-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+    .nav-group-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.4rem;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      padding: 0.75rem 0.85rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      width: 100%;
+      transition: background 0.15s ease;
+    }
+    .nav-group-toggle:hover { background: rgba(255,255,255,0.06); }
+    .nav-group-toggle.open,
+    .nav-group-toggle.child-active {
+      color: #fff;
+    }
+    .nav-group-chevron {
+      font-size: 0.7rem;
+      opacity: 0.75;
+      transition: transform 0.15s ease;
+    }
+    .nav-group-toggle.open .nav-group-chevron {
+      transform: rotate(90deg);
+    }
+    .nav-sub {
+      display: none;
+      flex-direction: column;
+      gap: 0.1rem;
+      padding: 0.1rem 0 0.15rem 0.55rem;
+    }
+    .nav-group.open .nav-sub { display: flex; }
+    .nav-sub .nav-btn {
+      padding: 0.55rem 0.85rem;
+      font-size: 0.88rem;
+    }
     main {
       flex: 1;
       min-width: 0;
@@ -589,8 +635,16 @@
     </div>
     <button type="button" class="nav-btn active" data-panel="intro">项目介绍</button>
     <button type="button" class="nav-btn" data-panel="data">数据管理</button>
-    <button type="button" class="nav-btn" data-panel="template">模版管理</button>
-    <button type="button" class="nav-btn" data-panel="report">报告管理</button>
+    <div class="nav-group" id="navGroupPro">
+      <button type="button" class="nav-group-toggle" id="navGroupProToggle" aria-expanded="false">
+        <span>专业报告</span>
+        <span class="nav-group-chevron" aria-hidden="true">▸</span>
+      </button>
+      <div class="nav-sub">
+        <button type="button" class="nav-btn" data-panel="template">模版管理</button>
+        <button type="button" class="nav-btn" data-panel="report">报告管理</button>
+      </div>
+    </div>
     <button type="button" class="nav-btn" data-panel="simple-report">简化报告</button>
   </aside>
 
@@ -615,8 +669,7 @@
           <h2>管理台模块</h2>
           <ul>
             <li><strong>数据管理</strong>：导入与查看就业去向（默认武汉大学）</li>
-            <li><strong>模版管理</strong>：配置章节树与指标字段</li>
-            <li><strong>报告管理</strong>：绑定模版并一键生成下载</li>
+            <li><strong>专业报告</strong>：模版管理（章节树与指标）+ 报告管理（一键生成下载）</li>
             <li><strong>简化报告</strong>：多数据接口 + 样式 → 计划确认 → 出 Word</li>
           </ul>
         </div>
@@ -862,8 +915,9 @@
     <section id="panel-report" class="panel hidden">
       <div class="head">
         <div>
-          <h1>完整报告</h1>
-          <p class="desc">配置报告名称与模版；一键按模版指标聚合并生成 Word</p>
+          <h1>报告管理</h1>
+          <p class="desc">配置报告名称与模版，一键按模版指标聚合并生成 Word。<br>
+            业务场景：可用于就业质量分析年报、按固定大纲反复出稿、指标口径要与库表字段对齐等。</p>
         </div>
         <div class="toolbar">
           <button type="button" class="primary-btn" id="mrCreateBtn">新建报告</button>
@@ -901,7 +955,8 @@
       <div class="head">
         <div>
           <h1>简化报告</h1>
-          <p class="desc">配置多数据接口与渲染样式；生成计划 → 确认 → 异步出 Word 并落交付目录</p>
+          <p class="desc">配置多数据接口与渲染样式；生成计划 → 确认 → 异步出 Word 并落交付目录。<br>
+            业务场景：可用于日报、周报、专题快报等等</p>
         </div>
         <div class="toolbar">
           <button type="button" class="primary-btn" id="srCreateBtn">新建</button>
@@ -1095,6 +1150,16 @@
         el.textContent = text || "";
       }
 
+      function setProNavGroup(open, childActive) {
+        var group = $("navGroupPro");
+        var toggle = $("navGroupProToggle");
+        if (!group || !toggle) return;
+        group.classList.toggle("open", !!open);
+        toggle.classList.toggle("open", !!open);
+        toggle.classList.toggle("child-active", !!childActive);
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+
       function switchPanel(name) {
         if (name === "school") name = "data";
         if (name !== "simple-report") {
@@ -1109,6 +1174,8 @@
         for (var i = 0; i < buttons.length; i++) {
           buttons[i].classList.toggle("active", buttons[i].getAttribute("data-panel") === name);
         }
+        var inPro = name === "template" || name === "report";
+        setProNavGroup(inPro, inPro);
         if (name === "data") loadData();
         if (name === "template") {
           loadTemplates();
@@ -1120,11 +1187,21 @@
         }
       }
 
-      function mrStatusLabel(s) {
-        if (s === 1) return "生成中";
-        if (s === 2) return "成功";
-        if (s === 3) return "失败";
-        return "草稿";
+      function mrStatusMeta(s) {
+        if (s === 1) return { label: "生成中", cls: "sr-gen-running" };
+        if (s === 2) return { label: "成功", cls: "sr-gen-ok" };
+        if (s === 3) return { label: "失败", cls: "sr-gen-fail" };
+        return { label: "草稿", cls: "sr-gen-none" };
+      }
+
+      function mrStatusBadgeHtml(s, failMessage) {
+        var meta = mrStatusMeta(s);
+        var title = meta.label;
+        if (s === 3 && failMessage) {
+          title = failMessage;
+        }
+        return "<span class=\"sr-gen-badge " + meta.cls + "\" title=\""
+          + String(title).replace(/"/g, "&quot;") + "\">" + meta.label + "</span>";
       }
 
       function downloadManagedReport(id) {
@@ -1181,7 +1258,6 @@
             } else {
               for (var i = 0; i < rows.length; i++) {
                 var row = rows[i];
-                var failTip = row.failMessage ? String(row.failMessage).replace(/"/g, "&quot;") : "";
                 var dlBtn = row.canDownload
                   ? ("<button type=\"button\" class=\"ghost-btn\" data-mr-dl=\"" + row.id + "\">下载</button> ")
                   : "";
@@ -1190,7 +1266,7 @@
                   + "<td>" + (row.name || "") + "</td>"
                   + "<td>" + (row.schoolName || DEFAULT_SCHOOL_NAME) + "</td>"
                   + "<td>" + (row.templateName || row.templateId || "") + "</td>"
-                  + "<td title=\"" + failTip + "\">" + mrStatusLabel(row.generateStatus) + "</td>"
+                  + "<td>" + mrStatusBadgeHtml(row.generateStatus, row.failMessage) + "</td>"
                   + "<td style=\"max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\" title=\""
                   + (row.filePath || "").replace(/"/g, "&quot;") + "\">" + (row.filePath || "—") + "</td>"
                   + "<td>" + fmtTime(row.updateTime) + "</td>"
@@ -1506,6 +1582,18 @@
       for (var i = 0; i < navBtns.length; i++) {
         navBtns[i].addEventListener("click", function (e) {
           switchPanel(e.currentTarget.getAttribute("data-panel"));
+        });
+      }
+
+      var proToggle = $("navGroupProToggle");
+      if (proToggle) {
+        proToggle.addEventListener("click", function () {
+          var group = $("navGroupPro");
+          var open = !(group && group.classList.contains("open"));
+          var childActive = !!document.querySelector(
+            '.nav-sub .nav-btn.active[data-panel="template"], .nav-sub .nav-btn.active[data-panel="report"]'
+          );
+          setProNavGroup(open, childActive);
         });
       }
 
