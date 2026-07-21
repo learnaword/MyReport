@@ -19,7 +19,11 @@
       --ok: #0063E6;
     }
     * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+    }
     body {
       font-family: "Source Han Sans SC", "Noto Sans SC", "PingFang SC", sans-serif;
       color: var(--ink);
@@ -29,6 +33,11 @@
     aside {
       width: 220px;
       flex-shrink: 0;
+      height: 100%;
+      overflow-y: auto;
+      position: sticky;
+      top: 0;
+      align-self: flex-start;
       background: linear-gradient(180deg, #0a2348 0%, #06162e 100%);
       color: var(--sidebar-text);
       padding: 1.4rem 0.9rem;
@@ -66,6 +75,10 @@
     main {
       flex: 1;
       min-width: 0;
+      min-height: 0;
+      height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
       padding: 1.4rem 1.6rem;
       display: flex;
       flex-direction: column;
@@ -407,6 +420,68 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 0.7rem;
     }
+    .intro-simple {
+      margin-top: 0.9rem;
+      border: 1px solid #c5d8f5;
+      border-radius: 10px;
+      padding: 0.95rem 1.05rem;
+      background: linear-gradient(180deg, #f7fafc 0%, #fff 100%);
+    }
+    .intro-simple > h2 {
+      margin: 0 0 0.4rem;
+      font-size: 1rem;
+    }
+    .intro-simple > p {
+      margin: 0 0 0.75rem;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+    .intro-simple .intro-sub {
+      margin: 0.85rem 0 0.4rem;
+      font-size: 0.92rem;
+      color: var(--ink);
+    }
+    .intro-simple .intro-sub:first-of-type { margin-top: 0.35rem; }
+    .intro-cfg-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.7rem;
+    }
+    .intro-cfg-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.7rem 0.8rem;
+      background: #fff;
+    }
+    .intro-cfg-item strong {
+      display: block;
+      margin-bottom: 0.3rem;
+      font-size: 0.88rem;
+      color: var(--ink);
+    }
+    .intro-cfg-item span, .intro-cfg-item li {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+    .intro-cfg-item ul {
+      margin: 0.25rem 0 0;
+      padding-left: 1.1rem;
+    }
+    .intro-cfg-item li + li { margin-top: 0.2rem; }
+    .intro-code {
+      margin: 0.4rem 0 0;
+      padding: 0.55rem 0.7rem;
+      border-radius: 8px;
+      background: #0a2348;
+      color: #d7e2f0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.75rem;
+      line-height: 1.45;
+      overflow-x: auto;
+      white-space: pre;
+    }
     .intro-ai-item {
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -464,12 +539,24 @@
       font-size: 0.75rem;
     }
     @media (max-width: 800px) {
-      body { flex-direction: column; }
-      aside { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; }
+      body { flex-direction: column; overflow: auto; height: auto; }
+      aside {
+        width: 100%;
+        height: auto;
+        max-height: none;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+      }
+      main { height: auto; overflow: visible; }
       .brand { width: 100%; padding-bottom: 0.4rem; }
       .table-wrap { max-height: 55vh; }
       .intro-grid { grid-template-columns: 1fr; }
       .intro-ai-grid { grid-template-columns: 1fr; }
+      .intro-cfg-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -480,7 +567,6 @@
       <small>数据管理台</small>
     </div>
     <button type="button" class="nav-btn active" data-panel="intro">项目介绍</button>
-    <button type="button" class="nav-btn" data-panel="school">学校管理</button>
     <button type="button" class="nav-btn" data-panel="data">数据管理</button>
     <button type="button" class="nav-btn" data-panel="template">模版管理</button>
     <button type="button" class="nav-btn" data-panel="report">报告管理</button>
@@ -491,33 +577,53 @@
     <section id="panel-intro" class="panel">
       <div class="intro-hero">
         <h1>MyReport 报告生成平台</h1>
-        <p>面向高校就业质量报告场景：导入学校与毕业生去向数据，配置报告模版与指标，一键聚合生成 Word（.docx）。图表章节可由 AI 统计分析师自动撰写解读文案。</p>
+        <p>面向高校就业质量报告场景：默认学校为武汉大学。导入毕业生去向数据，配置报告模版与指标，一键聚合生成 Word（.docx）。图表章节可由 AI 统计分析师自动撰写解读文案。</p>
       </div>
       <div class="intro-grid">
         <div class="intro-card">
           <h2>能做什么</h2>
           <ul>
-            <li>管理学校基础信息，支持 Excel 批量导入</li>
-            <li>维护毕业生就业去向明细，按学校筛选与导入</li>
+            <li>维护武汉大学毕业生就业去向明细（Excel 导入）</li>
             <li>可视化配置报告标题层级与统计指标</li>
             <li>按模版聚合数据并异步生成 Word 报告</li>
+            <li>简化报告：多数据接口确认后出稿</li>
           </ul>
         </div>
         <div class="intro-card">
           <h2>管理台模块</h2>
           <ul>
-            <li><strong>学校管理</strong>：维护学校列表</li>
-            <li><strong>数据管理</strong>：导入与查看就业去向</li>
+            <li><strong>数据管理</strong>：导入与查看就业去向（默认武汉大学）</li>
             <li><strong>模版管理</strong>：配置章节树与指标字段</li>
-            <li><strong>报告管理</strong>：绑定学校/模版并一键生成下载</li>
+            <li><strong>报告管理</strong>：绑定模版并一键生成下载</li>
             <li><strong>简化报告</strong>：多数据接口 + 样式 → 计划确认 → 出 Word</li>
           </ul>
         </div>
       </div>
 
+      <div class="intro-flow">
+        <h2>推荐使用流程</h2>
+        <p class="desc" style="margin:0 0 0.55rem">完整模版报告（数据 → 模版 → 报告管理）：</p>
+        <div class="intro-steps">
+          <span class="intro-step"><b>1</b>导入就业数据</span>
+          <span class="intro-arrow">→</span>
+          <span class="intro-step"><b>2</b>配置报告模版</span>
+          <span class="intro-arrow">→</span>
+          <span class="intro-step"><b>3</b>创建并生成报告</span>
+        </div>
+        <p class="desc" style="margin:0.75rem 0 0.55rem">简化报告（多接口轻量出稿，详见下方专节）：</p>
+        <div class="intro-steps">
+          <span class="intro-step"><b>1</b>配接口与样式</span>
+          <span class="intro-arrow">→</span>
+          <span class="intro-step"><b>2</b>生成计划</span>
+          <span class="intro-arrow">→</span>
+          <span class="intro-step"><b>3</b>确认出 Word</span>
+        </div>
+        <p class="desc" style="margin-top:0.75rem">打开本页默认进入项目介绍；侧边栏可进入「简化报告」或各完整链路模块。</p>
+      </div>
+
       <div class="intro-ai">
-        <h2>AI 能力介绍</h2>
-        <p>报告生成过程中，图表/统计数据会交给「图表统计分析师」Agent：基于 DashScope（通义千问）解读数据并写入 Word 正文，结论有数据依据，文案控制在约 200 字以内。</p>
+        <h2>AI 能力介绍（全局）</h2>
+        <p>两条路径都会用到 AI：完整模版报告与简化报告在生成 Word 时，图表数据可交给「图表统计分析师」；简化报告还可由外部 Agent 编排 plan/confirm。</p>
         <div class="intro-ai-grid">
           <div class="intro-ai-item">
             <strong>图表统计分析师</strong>
@@ -530,6 +636,73 @@
           <div class="intro-ai-item">
             <strong>失败兜底</strong>
             <span>调用失败或无结果时不中断生成流程，保证 Word 仍可正常落盘与下载。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="intro-simple">
+        <h2>简化报告：配置介绍</h2>
+        <p>轻量路径：不必搭完整模版树。配置「多数据接口 + 渲染样式」，人工确认计划后拉数并复用现有引擎出 Word；可选邮件与目录交付。</p>
+        <h3 class="intro-sub">要配什么</h3>
+        <div class="intro-cfg-grid">
+          <div class="intro-cfg-item">
+            <strong>报告元信息</strong>
+            <ul>
+              <li><strong>名称</strong>：列表展示与计划标题</li>
+              <li><strong>交付目录</strong>：成功后落盘相对路径（如 <code>simple/weekly</code>）</li>
+              <li><strong>通知邮箱</strong>：可选；配置 QQ SMTP 后成功时附 .docx 发出</li>
+            </ul>
+          </div>
+          <div class="intro-cfg-item">
+            <strong>数据区块（可多个）</strong>
+            <ul>
+              <li><strong>标题</strong>：Word 中该段章节名</li>
+              <li><strong>接口</strong>：GET/POST + URL（host 须白名单）</li>
+              <li><strong>渲染样式</strong>：TABLE / BAR / PIE / LINE</li>
+              <li><strong>上游约定</strong>：返回 <code>{ labels, values }</code></li>
+            </ul>
+          </div>
+        </div>
+        <p class="desc" style="margin-top:0.65rem">管理台「简化报告 → 新建」中，区块可按一行一条填写：</p>
+        <pre class="intro-code">学院就业人数 | GET | http://127.0.0.1:9091/demo-stat/by-college | BAR
+去向分布 | GET | http://127.0.0.1:9091/demo-stat/destination | TABLE</pre>
+
+        <h3 class="intro-sub">使用流程</h3>
+        <div class="intro-steps">
+          <span class="intro-step"><b>1</b>新建并保存配置</span>
+          <span class="intro-arrow">→</span>
+          <span class="intro-step"><b>2</b>填写诉求并生成计划</span>
+          <span class="intro-arrow">→</span>
+          <span class="intro-step"><b>3</b>审阅 planMd</span>
+          <span class="intro-arrow">→</span>
+          <span class="intro-step"><b>4</b>确认生成 Word</span>
+          <span class="intro-arrow">→</span>
+          <span class="intro-step"><b>5</b>下载 / 邮件 / 交付目录</span>
+        </div>
+        <div class="intro-cfg-grid" style="margin-top:0.75rem">
+          <div class="intro-cfg-item">
+            <strong>计划待确认</strong>
+            <span>「生成计划」产出 MD（查什么、接口、渲染、交付），状态为待确认；未确认不出 Word。</span>
+          </div>
+          <div class="intro-cfg-item">
+            <strong>确认后异步出稿</strong>
+            <span>按区块拉数 → 组装 reportJsonArr → 复用 Spire 异步生成；可轮询运行详情或 Redis 进度。</span>
+          </div>
+        </div>
+
+        <h3 class="intro-sub">AI 如何参与</h3>
+        <div class="intro-ai-grid">
+          <div class="intro-ai-item">
+            <strong>编排侧（Agent / Skill）</strong>
+            <span>OpenClaw / Comate 等可按诉求调用 plan → 展示计划 → confirm，不依赖本地 python-docx 另起炉灶。</span>
+          </div>
+          <div class="intro-ai-item">
+            <strong>计划与人工闸门</strong>
+            <span>系统根据配置与诉求生成 planMd；人（或 Agent 代操作）确认后才拉数出 Word，避免误跑。</span>
+          </div>
+          <div class="intro-ai-item">
+            <strong>图表解读文案</strong>
+            <span>出稿时柱状/饼/折线等图表可由「图表统计分析师」（DashScope qwen-plus）写约 200 字解读嵌入正文。</span>
           </div>
         </div>
       </div>
@@ -570,82 +743,15 @@
           </div>
         </div>
       </div>
-
-      <div class="intro-flow">
-        <h2>推荐使用流程</h2>
-        <div class="intro-steps">
-          <span class="intro-step"><b>1</b>导入学校</span>
-          <span class="intro-arrow">→</span>
-          <span class="intro-step"><b>2</b>导入就业数据</span>
-          <span class="intro-arrow">→</span>
-          <span class="intro-step"><b>3</b>配置报告模版</span>
-          <span class="intro-arrow">→</span>
-          <span class="intro-step"><b>4</b>创建并生成报告</span>
-        </div>
-        <p class="desc" style="margin-top:0.75rem">打开本页默认进入项目介绍；从左侧菜单进入各业务模块即可开始操作。</p>
-      </div>
-    </section>
-
-    <section id="panel-school" class="panel hidden">
-      <div class="head">
-        <div>
-          <h1>学校管理</h1>
-          <p class="desc">查看学校列表，支持 Excel 导入（表头：名称 / name）</p>
-        </div>
-        <div class="toolbar">
-          <label class="file-btn">
-            选择 Excel
-            <input id="schoolFile" type="file" accept=".xlsx,.xls" />
-          </label>
-          <button type="button" class="primary-btn" id="schoolImportBtn">导入</button>
-          <button type="button" class="ghost-btn" id="schoolRefreshBtn">刷新</button>
-        </div>
-      </div>
-      <div id="schoolMsg" class="msg"></div>
-      <div id="schoolProgress" class="progress-wrap" aria-hidden="true">
-        <div class="progress-meta">
-          <span id="schoolProgressLabel">上传中</span>
-          <span id="schoolProgressPct">0%</span>
-        </div>
-        <div class="progress-track">
-          <div id="schoolProgressBar" class="progress-bar"></div>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>名称</th>
-              <th>创建时间</th>
-              <th>更新时间</th>
-            </tr>
-          </thead>
-          <tbody id="schoolBody"></tbody>
-        </table>
-      </div>
-      <div class="pager">
-        <span id="schoolMeta">—</span>
-        <div class="btns">
-          <button type="button" class="ghost-btn" id="schoolPrev">上一页</button>
-          <button type="button" class="ghost-btn" id="schoolNext">下一页</button>
-        </div>
-      </div>
     </section>
 
     <section id="panel-data" class="panel hidden">
       <div class="head">
         <div>
           <h1>数据管理</h1>
-          <p class="desc">毕业生就业去向；Excel 含「学校名称」等 56 列表头；唯一键为学校+学号+毕业年份</p>
+          <p class="desc">毕业生就业去向（默认武汉大学）；Excel 可含「学校名称」列但导入时忽略并归属本校；唯一键为学号+毕业年份（校内）</p>
         </div>
         <div class="toolbar">
-          <select id="dataSchoolFilter" class="select">
-            <option value="">全部学校</option>
-          </select>
-          <select id="dataSchoolImport" class="select">
-            <option value="">导入时指定学校（可选）</option>
-          </select>
           <label class="file-btn">
             选择 Excel
             <input id="dataFile" type="file" accept=".xlsx,.xls" />
@@ -735,7 +841,7 @@
       <div class="head">
         <div>
           <h1>报告管理</h1>
-          <p class="desc">配置报告名称、学校与模版；一键按模版指标聚合并生成 Word</p>
+          <p class="desc">配置报告名称与模版（学校固定武汉大学）；一键按模版指标聚合并生成 Word</p>
         </div>
         <div class="toolbar">
           <button type="button" class="primary-btn" id="mrCreateBtn">新建报告</button>
@@ -882,10 +988,6 @@
         <input id="mrName" type="text" placeholder="必填" />
       </div>
       <div class="form-row">
-        <label>学校</label>
-        <select id="mrSchool" class="select"></select>
-      </div>
-      <div class="form-row">
         <label>模版</label>
         <select id="mrTemplate" class="select"></select>
       </div>
@@ -933,17 +1035,14 @@
 
   <script>
     (function () {
-      var schoolPage = 0;
       var dataPage = 0;
       var tplPage = 0;
       var mrPage = 0;
       var pageSize = 20;
-      var schoolTotalPages = 0;
       var dataTotalPages = 0;
       var tplTotalPages = 0;
       var mrTotalPages = 0;
-      /** schoolId -> schoolName */
-      var schoolNameById = {};
+      var DEFAULT_SCHOOL_NAME = "武汉大学";
       var mrEditingId = null;
       var mrModalMode = "create";
       var tplEditingId = null;
@@ -957,12 +1056,6 @@
 
       function $(id) { return document.getElementById(id); }
 
-      function schoolLabel(schoolId) {
-        if (schoolId == null || schoolId === "") return "";
-        var name = schoolNameById[String(schoolId)];
-        return name ? name : String(schoolId);
-      }
-
       function fmtTime(v) {
         if (!v) return "";
         if (typeof v === "string") return v.replace("T", " ").substring(0, 19);
@@ -975,8 +1068,8 @@
       }
 
       function switchPanel(name) {
+        if (name === "school") name = "data";
         $("panel-intro").classList.toggle("hidden", name !== "intro");
-        $("panel-school").classList.toggle("hidden", name !== "school");
         $("panel-data").classList.toggle("hidden", name !== "data");
         $("panel-template").classList.toggle("hidden", name !== "template");
         $("panel-report").classList.toggle("hidden", name !== "report");
@@ -985,7 +1078,6 @@
         for (var i = 0; i < buttons.length; i++) {
           buttons[i].classList.toggle("active", buttons[i].getAttribute("data-panel") === name);
         }
-        if (name === "school") loadSchools();
         if (name === "data") loadData();
         if (name === "template") {
           loadTemplates();
@@ -1061,7 +1153,7 @@
                 html += "<tr>"
                   + "<td>" + row.id + "</td>"
                   + "<td>" + (row.name || "") + "</td>"
-                  + "<td>" + (row.schoolName || row.schoolId || "") + "</td>"
+                  + "<td>" + (row.schoolName || DEFAULT_SCHOOL_NAME) + "</td>"
                   + "<td>" + (row.templateName || row.templateId || "") + "</td>"
                   + "<td title=\"" + failTip + "\">" + mrStatusLabel(row.generateStatus) + "</td>"
                   + "<td style=\"max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\" title=\""
@@ -1080,19 +1172,6 @@
               + (body.totalElements || 0) + " 条";
           })
           .catch(function () { setMsg($("mrMsg"), "网络错误", false); });
-      }
-
-      function fillMrSchoolSelect(selectedId) {
-        var sel = $("mrSchool");
-        var html = '<option value="">请选择学校</option>';
-        var ids = Object.keys(schoolNameById);
-        ids.sort(function (a, b) { return Number(a) - Number(b); });
-        for (var i = 0; i < ids.length; i++) {
-          var id = ids[i];
-          var selected = String(selectedId) === String(id) ? " selected" : "";
-          html += '<option value="' + id + '"' + selected + ">" + schoolNameById[id] + "</option>";
-        }
-        sel.innerHTML = html;
       }
 
       function fillMrTemplateSelect(selectedId) {
@@ -1117,7 +1196,6 @@
         $("mrModalTitle").textContent = mode === "edit" ? "编辑报告" : "新建报告";
         setMsg($("mrModalMsg"), "", true);
         $("mrName").value = row ? (row.name || "") : "";
-        fillMrSchoolSelect(row ? row.schoolId : "");
         fillMrTemplateSelect(row ? row.templateId : "").then(function () {
           $("mrModal").classList.add("show");
           $("mrModal").setAttribute("aria-hidden", "false");
@@ -1130,74 +1208,9 @@
         mrEditingId = null;
       }
 
-      function loadSchools() {
-        fetch("/school/list?page=" + schoolPage + "&size=" + pageSize)
-          .then(function (r) { return r.json(); })
-          .then(function (body) {
-            if (body.code !== 0) {
-              setMsg($("schoolMsg"), body.message || "查询失败", false);
-              return;
-            }
-            setMsg($("schoolMsg"), "", true);
-            schoolTotalPages = body.totalPages || 0;
-            var rows = body.content || [];
-            var html = "";
-            if (!rows.length) {
-              html = '<tr><td colspan="4" class="empty">暂无数据，请先导入</td></tr>';
-            } else {
-              for (var i = 0; i < rows.length; i++) {
-                var s = rows[i];
-                html += "<tr>"
-                  + "<td>" + (s.id == null ? "" : s.id) + "</td>"
-                  + "<td>" + escapeHtml(s.name) + "</td>"
-                  + "<td>" + fmtTime(s.createTime) + "</td>"
-                  + "<td>" + fmtTime(s.updateTime) + "</td>"
-                  + "</tr>";
-              }
-            }
-            $("schoolBody").innerHTML = html;
-            $("schoolMeta").textContent = "共 " + (body.totalElements || 0) + " 条，第 "
-              + ((body.page || 0) + 1) + " / " + Math.max(body.totalPages || 1, 1) + " 页";
-          })
-          .catch(function () {
-            setMsg($("schoolMsg"), "请求失败，请确认服务已启动", false);
-          });
-      }
-
-      function loadSchoolOptions() {
-        return fetch("/school/list?page=0&size=200")
-          .then(function (r) { return r.json(); })
-          .then(function (body) {
-            if (body.code !== 0) return;
-            var rows = body.content || [];
-            var filter = $("dataSchoolFilter");
-            var importSel = $("dataSchoolImport");
-            var filterVal = filter.value;
-            var importVal = importSel.value;
-            filter.innerHTML = '<option value="">全部学校</option>';
-            importSel.innerHTML = '<option value="">导入时指定学校（可选）</option>';
-            schoolNameById = {};
-            for (var i = 0; i < rows.length; i++) {
-              var s = rows[i];
-              if (s.id != null) {
-                schoolNameById[String(s.id)] = s.name || "";
-              }
-              var label = s.name || ("学校#" + s.id);
-              filter.innerHTML += '<option value="' + s.id + '">' + escapeHtml(label) + "</option>";
-              importSel.innerHTML += '<option value="' + s.id + '">' + escapeHtml(label) + "</option>";
-            }
-            filter.value = filterVal;
-            importSel.value = importVal;
-          });
-      }
-
       function loadData() {
-        loadSchoolOptions().then(function () {
-          var schoolId = $("dataSchoolFilter").value;
-          var url = "/grad-employment/list?page=" + dataPage + "&size=" + pageSize;
-          if (schoolId) url += "&schoolId=" + encodeURIComponent(schoolId);
-          return fetch(url);
-        })
+        var url = "/grad-employment/list?page=" + dataPage + "&size=" + pageSize;
+        fetch(url)
           .then(function (r) { return r.json(); })
           .then(function (body) {
             if (body.code !== 0) {
@@ -1215,7 +1228,7 @@
                 var d = rows[i];
                 html += "<tr>"
                   + "<td>" + (d.id == null ? "" : d.id) + "</td>"
-                  + "<td>" + escapeHtml(schoolLabel(d.schoolId)) + "</td>"
+                  + "<td>" + escapeHtml(DEFAULT_SCHOOL_NAME) + "</td>"
                   + "<td>" + escapeHtml(d.studentNo) + "</td>"
                   + "<td>" + escapeHtml(d.studentName) + "</td>"
                   + "<td>" + (d.graduationYear == null ? "" : d.graduationYear) + "</td>"
@@ -1449,10 +1462,6 @@
         xhr.send(fd);
       }
 
-      var schoolProgressIds = {
-        wrap: "schoolProgress", bar: "schoolProgressBar",
-        pct: "schoolProgressPct", label: "schoolProgressLabel"
-      };
       var dataProgressIds = {
         wrap: "dataProgress", bar: "dataProgressBar",
         pct: "dataProgressPct", label: "dataProgressLabel"
@@ -1465,25 +1474,7 @@
         });
       }
 
-      $("schoolRefreshBtn").addEventListener("click", function () { schoolPage = 0; loadSchools(); });
       $("dataRefreshBtn").addEventListener("click", function () { dataPage = 0; loadData(); });
-      $("dataSchoolFilter").addEventListener("change", function () { dataPage = 0; loadData(); });
-      $("schoolImportBtn").addEventListener("click", function () {
-        importFile(
-          "school",
-          $("schoolFile"),
-          "/school/importExcel",
-          "/school/importProgress",
-          $("schoolMsg"),
-          schoolProgressIds,
-          $("schoolImportBtn"),
-          function () {
-            schoolPage = 0;
-            loadSchools();
-            loadSchoolOptions();
-          }
-        );
-      });
       $("dataImportBtn").addEventListener("click", function () {
         importFile(
           "grad",
@@ -1496,15 +1487,8 @@
           function () {
             dataPage = 0;
             loadData();
-          },
-          { schoolId: $("dataSchoolImport").value }
+          }
         );
-      });
-      $("schoolPrev").addEventListener("click", function () {
-        if (schoolPage > 0) { schoolPage--; loadSchools(); }
-      });
-      $("schoolNext").addEventListener("click", function () {
-        if (schoolPage + 1 < schoolTotalPages) { schoolPage++; loadSchools(); }
       });
       $("dataPrev").addEventListener("click", function () {
         if (dataPage > 0) { dataPage--; loadData(); }
@@ -2187,7 +2171,7 @@
       });
 
       $("mrCreateBtn").addEventListener("click", function () {
-        loadSchoolOptions().then(function () { openMrModal("create", null); });
+        openMrModal("create", null);
       });
       $("mrRefreshBtn").addEventListener("click", function () { mrPage = 0; loadManagedReports(); });
       $("mrPrev").addEventListener("click", function () {
@@ -2199,10 +2183,8 @@
       $("mrModalCancel").addEventListener("click", closeMrModal);
       $("mrModalOk").addEventListener("click", function () {
         var name = $("mrName").value.trim();
-        var schoolId = $("mrSchool").value;
         var templateId = $("mrTemplate").value;
         if (!name) { setMsg($("mrModalMsg"), "报告名称不能为空", false); return; }
-        if (!schoolId) { setMsg($("mrModalMsg"), "请选择学校", false); return; }
         if (!templateId) { setMsg($("mrModalMsg"), "请选择模版", false); return; }
         var btn = $("mrModalOk");
         btn.disabled = true;
@@ -2210,12 +2192,10 @@
           ? postJson("/managed-report/update", {
               id: mrEditingId,
               name: name,
-              schoolId: Number(schoolId),
               templateId: Number(templateId)
             })
           : postJson("/managed-report/create", {
               name: name,
-              schoolId: Number(schoolId),
               templateId: Number(templateId)
             });
         req.then(function (body) {
@@ -2263,7 +2243,7 @@
                 setMsg($("mrMsg"), body.message || "加载失败", false);
                 return;
               }
-              loadSchoolOptions().then(function () { openMrModal("edit", body); });
+              openMrModal("edit", body);
             });
           return;
         }
@@ -2280,17 +2260,6 @@
         }
       });
 
-      resumeImportIfAny("school", "/school/importProgress", {
-        msgEl: $("schoolMsg"),
-        progressIds: schoolProgressIds,
-        importBtn: $("schoolImportBtn"),
-        fileInput: $("schoolFile"),
-        onOk: function () {
-          schoolPage = 0;
-          loadSchools();
-          loadSchoolOptions();
-        }
-      });
       resumeImportIfAny("grad", "/grad-employment/importProgress", {
         msgEl: $("dataMsg"),
         progressIds: dataProgressIds,
@@ -2593,11 +2562,12 @@
       }
 
       var hash = (location.hash || "#intro").replace("#", "");
-      if (hash !== "intro" && hash !== "school" && hash !== "data" && hash !== "template"
+      if (hash === "school") hash = "data";
+      if (hash !== "intro" && hash !== "data" && hash !== "template"
           && hash !== "report" && hash !== "simple-report") {
         hash = "intro";
       }
-      loadSchoolOptions().then(function () { switchPanel(hash); });
+      switchPanel(hash);
     })();
   </script>
 </body>

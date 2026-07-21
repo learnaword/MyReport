@@ -1,14 +1,11 @@
 package com.myreport.service;
 
-import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.myreport.entity.ManagedReport;
 import com.myreport.entity.ReportTemplate;
-import com.myreport.entity.School;
 import com.myreport.framework.redis.RedisTemplate;
 import com.myreport.repository.ManagedReportRepository;
 import com.myreport.repository.ReportTemplateRepository;
-import com.myreport.repository.SchoolRepository;
 import com.myreport.util.Constant;
 import com.myreport.util.FileUtil;
 import com.myreport.util.word.SpireReportUtil;
@@ -31,7 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 报告实例：CRUD + 一键生成。
+ * 报告实例：CRUD + 一键生成（学校固定为武汉大学）。
  */
 @Service
 public class ManagedReportService {
@@ -43,24 +40,24 @@ public class ManagedReportService {
     private static final int LOCK_TTL_SECONDS = 2 * 60 * 60;
 
     private final ManagedReportRepository reportRepository;
-    private final SchoolRepository schoolRepository;
     private final ReportTemplateRepository templateRepository;
     private final ReportTemplateService reportTemplateService;
     private final MetricAggregateService metricAggregateService;
     private final ReportJsonAssembler reportJsonAssembler;
+    private final DefaultSchoolService defaultSchoolService;
 
     public ManagedReportService(ManagedReportRepository reportRepository,
-                                SchoolRepository schoolRepository,
                                 ReportTemplateRepository templateRepository,
                                 ReportTemplateService reportTemplateService,
                                 MetricAggregateService metricAggregateService,
-                                ReportJsonAssembler reportJsonAssembler) {
+                                ReportJsonAssembler reportJsonAssembler,
+                                DefaultSchoolService defaultSchoolService) {
         this.reportRepository = reportRepository;
-        this.schoolRepository = schoolRepository;
         this.templateRepository = templateRepository;
         this.reportTemplateService = reportTemplateService;
         this.metricAggregateService = metricAggregateService;
         this.reportJsonAssembler = reportJsonAssembler;
+        this.defaultSchoolService = defaultSchoolService;
     }
 
     public Page<ManagedReport> list(int page, int size) {
@@ -84,8 +81,7 @@ public class ManagedReportService {
         m.put("createTime", r.getCreateTime());
         m.put("updateTime", r.getUpdateTime());
         m.put("canDownload", canDownload(r));
-        Optional<School> school = schoolRepository.findById(r.getSchoolId());
-        m.put("schoolName", school.isPresent() ? school.get().getName() : null);
+        m.put("schoolName", DefaultSchoolService.DEFAULT_SCHOOL_NAME);
         Optional<ReportTemplate> tpl = templateRepository.findById(r.getTemplateId());
         if (tpl.isPresent() && Integer.valueOf(NOT_DELETED).equals(tpl.get().getDeleted())) {
             m.put("templateName", tpl.get().getName());
@@ -109,7 +105,6 @@ public class ManagedReportService {
         if (StringUtils.isBlank(r.getFilePath())) {
             throw new IllegalArgumentException("暂无可下载文件");
         }
-        // 成功可下；失败但保留上次成功文件时可下旧稿
         if (st != ManagedReport.STATUS_SUCCESS && st != ManagedReport.STATUS_FAILED) {
             throw new IllegalArgumentException("当前状态不可下载");
         }
@@ -182,17 +177,20 @@ public class ManagedReportService {
         return toListItem(r);
     }
 
+    /**
+     * 创建报告。{@code schoolId} 入参忽略，写入默认校；同模版仅一份未删。
+     */
     @Transactional
     public Long create(String name, Long schoolId, Long templateId) {
         String trimmed = requireName(name);
-        requireSchool(schoolId);
+        Long defaultSchoolId = defaultSchoolService.requireId();
         requireEnabledTemplate(templateId);
-        if (reportRepository.existsBySchoolIdAndTemplateIdAndDeleted(schoolId, templateId, NOT_DELETED)) {
-            throw new IllegalArgumentException("该学校已存在绑定此模版的报告");
+        if (reportRepository.existsByTemplateIdAndDeleted(templateId, NOT_DELETED)) {
+            throw new IllegalArgumentException("该模版已存在报告");
         }
         ManagedReport r = new ManagedReport();
         r.setName(trimmed);
-        r.setSchoolId(schoolId);
+        r.setSchoolId(defaultSchoolId);
         r.setTemplateId(templateId);
         r.setGenerateStatus(ManagedReport.STATUS_DRAFT);
         r.setDeleted(NOT_DELETED);
@@ -200,6 +198,9 @@ public class ManagedReportService {
         return r.getId();
     }
 
+    /**
+     * 更新报告。{@code schoolId} 忽略；校正为默认校；模版维度唯一。
+     */
     @Transactional
     public void update(Long id, String name, Long schoolId, Long templateId) {
         ManagedReport r = requireReport(id);
@@ -210,22 +211,19 @@ public class ManagedReportService {
         if (name != null) {
             r.setName(requireName(name));
         }
-        Long nextSchool = schoolId != null ? schoolId : r.getSchoolId();
+        Long defaultSchoolId = defaultSchoolService.requireId();
         Long nextTemplate = templateId != null ? templateId : r.getTemplateId();
-        if (schoolId != null) {
-            requireSchool(schoolId);
-        }
         if (templateId != null) {
             requireEnabledTemplate(templateId);
         }
-        if (!nextSchool.equals(r.getSchoolId()) || !nextTemplate.equals(r.getTemplateId())) {
-            if (reportRepository.existsBySchoolIdAndTemplateIdAndDeletedAndIdNot(
-                    nextSchool, nextTemplate, NOT_DELETED, id)) {
-                throw new IllegalArgumentException("该学校已存在绑定此模版的报告");
+        if (!nextTemplate.equals(r.getTemplateId())) {
+            if (reportRepository.existsByTemplateIdAndDeletedAndIdNot(
+                    nextTemplate, NOT_DELETED, id)) {
+                throw new IllegalArgumentException("该模版已存在报告");
             }
-            r.setSchoolId(nextSchool);
             r.setTemplateId(nextTemplate);
         }
+        r.setSchoolId(defaultSchoolId);
         reportRepository.save(r);
     }
 
@@ -245,15 +243,20 @@ public class ManagedReportService {
     }
 
     /**
-     * 组装数据并提交异步 Word 生成。
+     * 组装数据并提交异步 Word 生成（按默认校聚合）。
      */
+    @Transactional
     public void generate(Long id) {
         ManagedReport r = requireReport(id);
         if (r.getGenerateStatus() != null
                 && r.getGenerateStatus() == ManagedReport.STATUS_GENERATING) {
             throw new IllegalArgumentException("报告正在生成中");
         }
-        requireSchool(r.getSchoolId());
+        Long defaultSchoolId = defaultSchoolService.requireId();
+        if (!defaultSchoolId.equals(r.getSchoolId())) {
+            r.setSchoolId(defaultSchoolId);
+            reportRepository.save(r);
+        }
         ReportTemplate template = requireEnabledTemplate(r.getTemplateId());
 
         Map<String, Object> detail = reportTemplateService.detail(template.getId());
@@ -265,7 +268,7 @@ public class ManagedReportService {
         List<Map<String, Object>> metrics = new ArrayList<Map<String, Object>>();
         Map<Long, String> intros = new HashMap<Long, String>();
         reportJsonAssembler.collectMetrics(nodes, metrics, intros);
-        Map<Long, JSONObject> metricData = metricAggregateService.aggregate(r.getSchoolId(), metrics, intros);
+        Map<Long, JSONObject> metricData = metricAggregateService.aggregate(defaultSchoolId, metrics, intros);
         ReportJsonAssembler.AssembleResult assembled = reportJsonAssembler.assemble(nodes, metricData);
         if (assembled.getReportJsonArr() == null || assembled.getReportJsonArr().isEmpty()) {
             throw new IllegalArgumentException("无可生成的报告内容（请检查模版指标与学校数据）");
@@ -298,7 +301,7 @@ public class ManagedReportService {
             CreateReportVO vo = new CreateReportVO();
             vo.setReportId(reportId);
             vo.setReportName(sanitizeFileName(r.getName()));
-            vo.setLSchoolId(r.getSchoolId());
+            vo.setLSchoolId(defaultSchoolId);
             vo.setReportJsonArr(assembled.getReportJsonArr());
             vo.setOverallSetting(overallSetting);
             vo.set("managedReportSync", true);
@@ -323,15 +326,6 @@ public class ManagedReportService {
             throw new IllegalArgumentException("报告不存在或已删除");
         }
         return opt.get();
-    }
-
-    private void requireSchool(Long schoolId) {
-        if (schoolId == null) {
-            throw new IllegalArgumentException("学校不能为空");
-        }
-        if (!schoolRepository.findById(schoolId).isPresent()) {
-            throw new IllegalArgumentException("学校不存在");
-        }
     }
 
     private ReportTemplate requireEnabledTemplate(Long templateId) {

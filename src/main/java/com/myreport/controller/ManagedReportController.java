@@ -95,9 +95,8 @@ public class ManagedReportController {
         Map<String, Object> result = new HashMap<String, Object>();
         try {
             String name = body.get("name") == null ? null : String.valueOf(body.get("name"));
-            Long schoolId = toLong(body.get("schoolId"));
             Long templateId = toLong(body.get("templateId"));
-            Long id = managedReportService.create(name, schoolId, templateId);
+            Long id = managedReportService.create(name, null, templateId);
             result.put("code", 0);
             result.put("message", "创建成功");
             result.put("id", id);
@@ -124,9 +123,8 @@ public class ManagedReportController {
             String name = body.containsKey("name")
                     ? (body.get("name") == null ? null : String.valueOf(body.get("name")))
                     : null;
-            Long schoolId = body.containsKey("schoolId") ? toLong(body.get("schoolId")) : null;
             Long templateId = body.containsKey("templateId") ? toLong(body.get("templateId")) : null;
-            managedReportService.update(id, name, schoolId, templateId);
+            managedReportService.update(id, name, null, templateId);
             result.put("code", 0);
             result.put("message", "更新成功");
         } catch (IllegalArgumentException e) {

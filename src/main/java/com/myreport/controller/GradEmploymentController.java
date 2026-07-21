@@ -75,11 +75,9 @@ public class GradEmploymentController {
         Map<String, Object> result = new HashMap<String, Object>();
         try {
             gradEmploymentService.validateFile(file);
-            gradEmploymentService.validateDefaultSchoolId(schoolId);
 
             final String taskId = UUID.randomUUID().toString().replace("-", "");
             final String filename = file.getOriginalFilename();
-            final Long schoolIdFinal = schoolId;
             final File temp = File.createTempFile("grad-import-", suffixOf(filename));
             file.transferTo(temp);
 
@@ -90,7 +88,7 @@ public class GradEmploymentController {
                     try {
                         ImportProgressUtil.update(taskId, 5, 100, "开始导入…");
                         Map<String, Object> summary = gradEmploymentService.importFromExcel(
-                                temp, filename, schoolIdFinal, taskId);
+                                temp, filename, null, taskId);
                         ImportProgressUtil.success(taskId, "导入成功", summary);
                     } catch (IllegalArgumentException e) {
                         ImportProgressUtil.fail(taskId, e.getMessage());

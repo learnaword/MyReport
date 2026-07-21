@@ -5,6 +5,8 @@
 - 浏览器管理台：`/admin/index.html#data`
 - 其它系统可直接调用上传接口
 
+> 数据默认归属 **武汉大学**；无需先导入学校、无需传 `schoolId`。详见 `docs/remove_school_manage/API设计.md`。
+
 ## API
 
 | 方法 | 路径 | 说明 |
@@ -20,7 +22,7 @@
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | file | File | 是 | `.xlsx` / `.xls`，≤ 20MB |
-| schoolId | Long | 否 | 默认学校 ID；当行无「学校ID」且无「学校名称」时使用 |
+| schoolId | Long | 否 | **忽略**；一律归属武汉大学 |
 
 **Excel 现行表头（56 列，顺序如下）：**
 
@@ -39,11 +41,10 @@
 
 - 使用第一个工作表，首行为表头
 - 表头须包含「学号」「毕业年份」
-- 「学校名称」按 `school.name` **精确匹配** 解析为 `school_id`
-- 学校解析优先级：①「学校ID」列（兼容旧表）→ ②「学校名称」→ ③ 请求参数 `schoolId` → ④ 库内随机一所
+- 「学校名称 / 学校ID」列可读入但**不参与归属**；服务端强制写入默认校（武汉大学）
+- 请求参数 `schoolId` **忽略**
 - 「单位名称」出现 **3 次**，按次序映射：第 1 次→就业单位，第 2 次→就业职业后单位，第 3 次→升学院校
-- 同一「学校ID + 学号 + 毕业年份」已存在则覆盖更新，否则新增
-- 「学校名称」找不到则整批失败
+- 同一「学校ID + 学号 + 毕业年份」已存在则覆盖更新，否则新增（学校ID 恒为默认校）
 
 **成功响应（任务已提交，非导入完成）：**
 
@@ -55,12 +56,12 @@
 }
 ```
 
-**失败响应：**
+**失败响应示例：**
 
 ```json
 {
   "code": -1,
-  "message": "学校名称不存在：某某大学（学号 2024001）"
+  "message": "请上传 Excel 文件"
 }
 ```
 
@@ -85,6 +86,7 @@
 ```bash
 curl -X POST "http://localhost:9091/grad-employment/importExcel" \
   -F "file=@grad_employment.xlsx"
+# 不要再传 schoolId
 curl "http://localhost:9091/grad-employment/importProgress?taskId=YOUR_TASK_ID"
 ```
 
@@ -98,7 +100,8 @@ curl "http://localhost:9091/grad-employment/importProgress?taskId=YOUR_TASK_ID"
 ## 注意事项
 
 - 学号、毕业年份为空的数据行会整批失败并返回行号提示
-- 「学校名称」须与学校管理中已导入的名称完全一致
+- 不再因「学校名称不存在」失败；无需先维护学校列表
+- 列表接口仅返回武汉大学下的记录
 - 旧版含代码列/500 强等列的表头将忽略；实体已按现行 56 列收缩
 - 不对外暴露堆栈与本机路径
 - 刷新管理台后会按 `sessionStorage` 中的 `taskId` 自动恢复进度条

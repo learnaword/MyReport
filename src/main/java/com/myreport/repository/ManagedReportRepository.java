@@ -20,4 +20,8 @@ public interface ManagedReportRepository extends JpaRepository<ManagedReport, Lo
 
     boolean existsBySchoolIdAndTemplateIdAndDeletedAndIdNot(
             Long schoolId, Long templateId, Integer deleted, Long id);
+
+    boolean existsByTemplateIdAndDeleted(Long templateId, Integer deleted);
+
+    boolean existsByTemplateIdAndDeletedAndIdNot(Long templateId, Integer deleted, Long id);
 }

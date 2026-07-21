@@ -29,8 +29,8 @@ public class School {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 学校名称 */
-    @Column(name = "name", length = 128, nullable = false)
+    /** 学校名称（默认校「武汉大学」须唯一） */
+    @Column(name = "name", length = 128, nullable = false, unique = true)
     private String name;
 
     /** 创建时间 */

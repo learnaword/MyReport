@@ -1,10 +1,8 @@
 package com.myreport.service;
 
 import com.myreport.entity.GradEmploymentRecord;
-import com.myreport.entity.School;
 import com.myreport.framework.redis.ImportProgressUtil;
 import com.myreport.repository.GradEmploymentRecordRepository;
-import com.myreport.repository.SchoolRepository;
 import com.myreport.util.excel.GradEmploymentExcelUtil;
 import org.apache.log4j.Logger;
 import org.springframework.beans.BeanUtils;
@@ -20,17 +18,15 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.UUID;
 
 /**
- * 毕业生就业去向：列表与 Excel 导入（学校ID+学号+毕业年份覆盖更新）。
+ * 毕业生就业去向：列表与 Excel 导入（默认归属武汉大学；学校ID+学号+毕业年份覆盖更新）。
  */
 @Service
 public class GradEmploymentService {
@@ -42,22 +38,23 @@ public class GradEmploymentService {
     private static final String[] IGNORE_COPY = new String[] {"id", "createdAt", "updatedAt", "importSchoolName"};
 
     private final GradEmploymentRecordRepository repository;
-    private final SchoolRepository schoolRepository;
-    private final Random random = new Random();
+    private final DefaultSchoolService defaultSchoolService;
 
-    public GradEmploymentService(GradEmploymentRecordRepository repository, SchoolRepository schoolRepository) {
+    public GradEmploymentService(GradEmploymentRecordRepository repository,
+                                 DefaultSchoolService defaultSchoolService) {
         this.repository = repository;
-        this.schoolRepository = schoolRepository;
+        this.defaultSchoolService = defaultSchoolService;
     }
 
+    /**
+     * 列表仅返回默认校数据；{@code schoolId} 入参忽略。
+     */
     public Page<GradEmploymentRecord> list(int page, int size, Long schoolId) {
         int safePage = page < 0 ? 0 : page;
         int safeSize = size <= 0 ? 20 : Math.min(size, 200);
         PageRequest pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "id"));
-        if (schoolId != null) {
-            return repository.findBySchoolId(schoolId, pageable);
-        }
-        return repository.findAll(pageable);
+        Long defaultId = defaultSchoolService.requireId();
+        return repository.findBySchoolId(defaultId, pageable);
     }
 
     public void validateFile(MultipartFile file) {
@@ -70,10 +67,11 @@ public class GradEmploymentService {
         validateFilename(file.getOriginalFilename());
     }
 
+    /**
+     * 兼容旧调用：选校入参已忽略。
+     */
     public void validateDefaultSchoolId(Long schoolId) {
-        if (schoolId != null && !schoolRepository.existsById(schoolId)) {
-            throw new IllegalArgumentException("学校不存在：" + schoolId);
-        }
+        // schoolId ignored — always use default school
     }
 
     @Transactional
@@ -94,12 +92,13 @@ public class GradEmploymentService {
         }
     }
 
+    /**
+     * 导入：忽略请求 schoolId 与 Excel 学校列，一律归属武汉大学。
+     */
     @Transactional
     public Map<String, Object> importFromExcel(InputStream in, String filename, Long schoolId, String taskId)
             throws Exception {
-        if (schoolId != null && !schoolRepository.existsById(schoolId)) {
-            throw new IllegalArgumentException("学校不存在：" + schoolId);
-        }
+        Long defaultId = defaultSchoolService.requireId();
 
         String batchId = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
                 + "-" + UUID.randomUUID().toString().substring(0, 8);
@@ -111,28 +110,15 @@ public class GradEmploymentService {
                 in,
                 filename,
                 batchId,
-                schoolId
+                defaultId
         );
-
-        Map<String, Long> schoolNameToId = buildSchoolNameCache();
-        Long fallbackSchoolId = null;
 
         int inserted = 0;
         int updated = 0;
         int total = parsed.size();
         for (int i = 0; i < parsed.size(); i++) {
             GradEmploymentRecord incoming = parsed.get(i);
-            resolveSchoolId(incoming, schoolNameToId);
-            if (incoming.getSchoolId() == null) {
-                if (fallbackSchoolId == null) {
-                    fallbackSchoolId = pickRandomSchoolId();
-                }
-                incoming.setSchoolId(fallbackSchoolId);
-            }
-            if (!schoolRepository.existsById(incoming.getSchoolId())) {
-                throw new IllegalArgumentException("学校不存在：" + incoming.getSchoolId()
-                        + "（学号 " + incoming.getStudentNo() + "）");
-            }
+            incoming.setSchoolId(defaultId);
             Optional<GradEmploymentRecord> existingOpt = repository
                     .findBySchoolIdAndStudentNoAndGraduationYear(
                             incoming.getSchoolId(),
@@ -160,56 +146,9 @@ public class GradEmploymentService {
         summary.put("inserted", inserted);
         summary.put("updated", updated);
         logger.info("grad employment import done, batchId=" + batchId
+                + ", defaultSchoolId=" + defaultId
                 + ", inserted=" + inserted + ", updated=" + updated);
         return summary;
-    }
-
-    /**
-     * 若尚无 schoolId，则按 Excel「学校名称」精确匹配 school.name。
-     */
-    private void resolveSchoolId(GradEmploymentRecord incoming, Map<String, Long> schoolNameToId) {
-        if (incoming.getSchoolId() != null) {
-            return;
-        }
-        String name = incoming.getImportSchoolName();
-        if (name == null || name.trim().isEmpty()) {
-            return;
-        }
-        String key = name.trim();
-        Long id = schoolNameToId.get(key);
-        if (id == null) {
-            Optional<School> found = schoolRepository.findFirstByName(key);
-            if (!found.isPresent()) {
-                throw new IllegalArgumentException("学校名称不存在：" + key
-                        + "（学号 " + incoming.getStudentNo() + "）");
-            }
-            id = found.get().getId();
-            schoolNameToId.put(key, id);
-        }
-        incoming.setSchoolId(id);
-    }
-
-    private Map<String, Long> buildSchoolNameCache() {
-        Map<String, Long> map = new HashMap<String, Long>();
-        for (School school : schoolRepository.findAll()) {
-            if (school.getName() != null && !school.getName().isEmpty() && school.getId() != null) {
-                if (!map.containsKey(school.getName())) {
-                    map.put(school.getName(), school.getId());
-                }
-            }
-        }
-        return map;
-    }
-
-    private Long pickRandomSchoolId() {
-        List<School> schools = schoolRepository.findAll();
-        if (schools == null || schools.isEmpty()) {
-            throw new IllegalArgumentException("数据库中没有学校，无法导入；请先导入学校或指定学校ID/学校名称");
-        }
-        School picked = schools.get(random.nextInt(schools.size()));
-        logger.info("import without school, randomly picked schoolId=" + picked.getId()
-                + ", name=" + picked.getName());
-        return picked.getId();
     }
 
     private void validateFilename(String filename) {

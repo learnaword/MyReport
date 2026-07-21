@@ -33,7 +33,7 @@ POST /report/createReport
 
 | Package | Purpose |
 |---------|---------|
-| `controller` | REST 入口（报告生成、学校/就业导入、模版、**报告管理**） |
+| `controller` | REST 入口（报告生成、就业导入、模版、**报告管理**；学校产品 API 已下线） |
 | `vo` | 请求体（如 `CreateReportVO`） |
 | `util.word` | Spire 报告主流程（`SpireReportUtil`） |
 | `util.word.common` | 模板、文本、坐标、高度、异常收集等 |
@@ -41,8 +41,8 @@ POST /report/createReport
 | `util` | `Constant`、`FileUtil` |
 | `framework.redis` | Jedis 池、`RedisTemplate`、文件进度 |
 | `framework.jpa` | `@EntityScan` / `@EnableJpaRepositories` |
-| `entity` / `repository` | JPA：学校、就业、模版、**报告实例**等 |
-| `service` | 学校/就业/模版/**报告管理**业务 |
+| `entity` / `repository` | JPA：学校（内部默认校）、就业、模版、**报告实例**等 |
+| `service` | 就业/模版/报告管理；`DefaultSchoolService`（武汉大学） |
 
 ## Key Entry Points
 
@@ -69,10 +69,16 @@ POST /report/createReport
 
 **报告管理（管理台一键生成）** — 详见 `docs/report_manage.md`
 
-- `POST /managed-report/create`：名称 + 学校 + 模版
-- `POST /managed-report/generate`：读模版树、聚合就业指标、组装 `reportJsonArr` 后触发生成；`reportId` = 实例 id
+- `POST /managed-report/create`：名称 + 模版（学校固定武汉大学，不必传 `schoolId`）
+- `POST /managed-report/generate`：读模版树、按默认校聚合就业指标、组装 `reportJsonArr` 后触发生成；`reportId` = 实例 id
 - `GET /managed-report/download?id=`：生成成功（或失败仍有旧稿）后下载 `.docx` — 详见 `docs/report_download.md`
 - 管理台：`/admin/index.html#report`
+
+**单校默认（去掉学校管理）** — 详见 `docs/remove_school_manage.md`
+
+- 默认校名称写死「武汉大学」；`DefaultSchoolService` 按名查找/自动创建
+- `/school/list`、`importExcel` 等产品 API 已下线；就业导入/列表强制默认校
+- 同模版仅允许一份未删报告
 
 **模版指标统计字段字典** — 详见 `docs/metric_field_select/API设计.md`
 

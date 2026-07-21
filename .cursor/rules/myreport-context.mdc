@@ -6,7 +6,8 @@ alwaysApply: true
 # MyReport 项目记忆
 
 Word 报告生成单体：Java 8 + Spring Boot 2.7.18（JAR）+ Spire.Doc / POI。  
-对外 REST（当前 `POST /report/createReport`）；异步生成 `.docx`，Redis（Jedis）回写进度与锁。默认端口 **9091**。
+对外 REST（当前 `POST /report/createReport`）；异步生成 `.docx`，Redis（Jedis）回写进度与锁。默认端口 **9091**。  
+单校默认：**武汉大学**（学校管理产品 API 已下线；见 `docs/remove_school_manage.md`）。
 
 ## 包目录（`com.myreport`）
 
