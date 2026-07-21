@@ -30,7 +30,6 @@ public class SpireReportUtil {
     private final static String SUB_FOLDER = "report/report/";
     private final static String strBasePathPre = "report";
 
-
     public static void createReport(JSONArray reportJsonArr, JSONObject overallSetting, CreateReportVO createReportVO) {
         Integer reportId = createReportVO.getReportId();
         String strDownloaderKey = String.format(Constant.RedisKey.REPORT_LIST, reportId);

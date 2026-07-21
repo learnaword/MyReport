@@ -30,6 +30,7 @@ public class WordContant {
     public class template {
         //spireReport模板
         public static final String SPIRE_REPORT_TEMPLATE = "word/template/template.docx";
+        public static final String SIMPLE_REPORT_TEMPLATE = "word/template/simpleTemplate.docx";
         //spireWordReport模板
         public static final String SPIRE_WORD_REPORT_TEMPLATE = "word/template/wordTemplate.docx";
         //spireOrgReport模板

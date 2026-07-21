@@ -12,7 +12,7 @@ import com.myreport.repository.SimpleReportBlockRepository;
 import com.myreport.repository.SimpleReportRepository;
 import com.myreport.repository.SimpleReportRunRepository;
 import com.myreport.util.Constant;
-import com.myreport.util.word.SpireReportUtil;
+import com.myreport.util.word.SimpleReportUtil;
 import com.myreport.util.word.common.CommonUtil;
 import com.myreport.vo.CreateReportVO;
 import org.apache.commons.lang.StringUtils;
@@ -313,7 +313,7 @@ public class SimpleReportService {
             vo.setOverallSetting(overallSetting);
             vo.set("simpleReportSync", true);
 
-            SpireReportUtil.createReport(assembled.getReportJsonArr(), overallSetting, vo);
+            SimpleReportUtil.createReport(assembled.getReportJsonArr(), overallSetting, vo);
         } catch (Exception e) {
             logger.error("simple-report confirm failed, runId=" + runId, e);
             RedisTemplate.delete(lockKey);
