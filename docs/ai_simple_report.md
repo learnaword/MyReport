@@ -24,7 +24,10 @@
 | POST | /simple-report/runs/cancel | 取消待确认 |
 | GET | /simple-report/runs/detail | 运行详情 |
 | GET | /simple-report/runs/list | 运行列表 |
-| GET | /simple-report/runs/download | 下载 `.docx` |
+| GET | /simple-report/runs/download | 按 runId 下载 `.docx` |
+| GET | /simple-report/download | 按配置 id 下载最近成功稿 |
+
+列表含 `canDownload` / `latestSuccessRunId`。下载对接详见 [`docs/simple_report_download.md`](simple_report_download.md)。
 
 响应风格：`code`（0 成功 / -1 失败）+ `message`。
 
@@ -84,7 +87,8 @@ Redis：report:list:{engineReportId}
   engineReportId = 1000000000 + runId
 
 交付：成功后文件在配置的 deliveryDir（detail.deliveryPath）
-下载：GET /simple-report/runs/download?runId=
+下载：GET /simple-report/runs/download?runId= 或 GET /simple-report/download?id=
+  详见 docs/simple_report_download.md
 ```
 
 ### 4. 上游数据响应

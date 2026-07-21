@@ -329,6 +329,12 @@
       opacity: 0.92;
       max-width: 46rem;
     }
+    .intro-hero a {
+      color: #cfe4ff;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .intro-hero a:hover { color: #fff; }
     .intro-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -578,6 +584,7 @@
       <div class="intro-hero">
         <h1>MyReport 报告生成平台</h1>
         <p>面向高校就业质量报告场景：默认学校为武汉大学。导入毕业生去向数据，配置报告模版与指标，一键聚合生成 Word（.docx）。图表章节可由 AI 统计分析师自动撰写解读文案。</p>
+        <p>GitHub：<a href="https://github.com/learnaword/MyReport" target="_blank" rel="noopener noreferrer">https://github.com/learnaword/MyReport</a></p>
       </div>
       <div class="intro-grid">
         <div class="intro-card">
@@ -1028,6 +1035,7 @@
         <button type="button" class="ghost-btn" id="srModalCancel">关闭</button>
         <button type="button" class="ghost-btn" id="srPlanBtn">生成计划</button>
         <button type="button" class="primary-btn" id="srConfirmBtn" style="display:none">确认生成 Word</button>
+        <button type="button" class="ghost-btn" id="srDownloadBtn" style="display:none">下载本次</button>
         <button type="button" class="primary-btn" id="srModalOk">保存配置</button>
       </div>
     </div>
@@ -1097,12 +1105,16 @@
       }
 
       function downloadManagedReport(id) {
-        fetch("/managed-report/download?id=" + id)
+        downloadDocx("/managed-report/download?id=" + id, $("mrMsg"));
+      }
+
+      function downloadDocx(url, msgEl) {
+        fetch(url)
           .then(function (r) {
             var ct = (r.headers.get("content-type") || "").toLowerCase();
             if (!r.ok || ct.indexOf("application/json") >= 0) {
               return r.json().then(function (body) {
-                setMsg($("mrMsg"), (body && body.message) || "下载失败", false);
+                setMsg(msgEl, (body && body.message) || "下载失败", false);
               });
             }
             var disp = r.headers.get("Content-Disposition") || "";
@@ -1115,18 +1127,18 @@
               fileName = mPlain[1];
             }
             return r.blob().then(function (blob) {
-              var url = URL.createObjectURL(blob);
+              var objectUrl = URL.createObjectURL(blob);
               var a = document.createElement("a");
-              a.href = url;
+              a.href = objectUrl;
               a.download = fileName;
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-              setMsg($("mrMsg"), "已开始下载", true);
+              URL.revokeObjectURL(objectUrl);
+              setMsg(msgEl, "已开始下载", true);
             });
           })
-          .catch(function () { setMsg($("mrMsg"), "下载失败", false); });
+          .catch(function () { setMsg(msgEl, "下载失败", false); });
       }
 
       function loadManagedReports() {
@@ -2313,6 +2325,7 @@
         $("srPlanPreview").style.display = "none";
         $("srPlanPreview").textContent = "";
         $("srConfirmBtn").style.display = "none";
+        $("srDownloadBtn").style.display = "none";
         $("srUserPrompt").value = "";
         setMsg($("srModalMsg"), "", true);
         if (!id) {
@@ -2377,6 +2390,10 @@
                   srPendingRunId = detail.runId;
                   $("srConfirmBtn").style.display = "inline-block";
                   setMsg($("srModalMsg"), "已回显待确认计划（runId=" + detail.runId + "）", true);
+                } else if (detail.canDownload || detail.runStatus === 3) {
+                  srPendingRunId = detail.runId;
+                  $("srDownloadBtn").style.display = "inline-block";
+                  setMsg($("srModalMsg"), "已回显最近成功稿，可下载（runId=" + detail.runId + "）", true);
                 } else if (detail.userPrompt) {
                   setMsg($("srModalMsg"), "已回显最近一次诉求", true);
                 }
@@ -2419,10 +2436,11 @@
                 ops.appendChild(b);
               }
               addBtn("编辑", function () { openSrModal(row.id); });
-              addBtn("计划", function () {
-                openSrModal(row.id);
-                setTimeout(function () { $("srPlanBtn").click(); }, 400);
-              });
+              if (row.canDownload) {
+                addBtn("下载", function () {
+                  downloadDocx("/simple-report/download?id=" + row.id, $("srMsg"));
+                });
+              }
               addBtn("删除", function () {
                 if (!confirm("确认删除？")) return;
                 postJson("/simple-report/delete", { id: row.id }).then(function (res) {
@@ -2518,6 +2536,7 @@
           $("srPlanPreview").style.display = "block";
           $("srPlanPreview").textContent = res.planMd || "";
           $("srConfirmBtn").style.display = "inline-block";
+          $("srDownloadBtn").style.display = "none";
           setMsg($("srModalMsg"), "计划已生成（runId=" + res.runId + "），请确认后生成 Word", true);
         });
       });
@@ -2533,9 +2552,18 @@
             setMsg($("srModalMsg"), res.message || "提交失败", false);
             return;
           }
+          $("srDownloadBtn").style.display = "none";
           setMsg($("srModalMsg"), "已提交生成，engineReportId=" + res.engineReportId + "，请稍后在运行详情查看", true);
           pollSrRun(srPendingRunId);
         });
+      });
+
+      $("srDownloadBtn").addEventListener("click", function () {
+        if (!srPendingRunId) {
+          setMsg($("srModalMsg"), "无可下载运行", false);
+          return;
+        }
+        downloadDocx("/simple-report/runs/download?runId=" + srPendingRunId, $("srModalMsg"));
       });
 
       function pollSrRun(runId) {
@@ -2548,6 +2576,9 @@
               if (body.runStatus === 3) {
                 setMsg($("srModalMsg"), "生成成功：" + (body.deliveryPath || body.filePath || ""), true);
                 setMsg($("srMsg"), "简化报告生成成功 runId=" + runId, true);
+                $("srDownloadBtn").style.display = "inline-block";
+                $("srConfirmBtn").style.display = "none";
+                loadSimpleReports();
                 return;
               }
               if (body.runStatus === 4) {

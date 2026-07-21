@@ -12,6 +12,7 @@ import com.myreport.repository.SimpleReportBlockRepository;
 import com.myreport.repository.SimpleReportRepository;
 import com.myreport.repository.SimpleReportRunRepository;
 import com.myreport.util.Constant;
+import com.myreport.util.FileUtil;
 import com.myreport.util.word.SimpleReportUtil;
 import com.myreport.util.word.common.CommonUtil;
 import com.myreport.vo.CreateReportVO;
@@ -96,6 +97,9 @@ public class SimpleReportService {
         m.put("scheduleEnabled", r.getScheduleEnabled());
         m.put("cronExpr", r.getCronExpr());
         m.put("blockCount", blockRepository.countByReportId(r.getId()));
+        SimpleReportRun latest = findLatestDownloadableRun(r.getId());
+        m.put("canDownload", latest != null);
+        m.put("latestSuccessRunId", latest != null ? latest.getId() : null);
         m.put("createTime", r.getCreateTime());
         m.put("updateTime", r.getUpdateTime());
         return m;
@@ -360,20 +364,154 @@ public class SimpleReportService {
         return toRunMap(run, false);
     }
 
-    public File resolveDownloadFile(Long runId) {
+    /**
+     * 按 runId 下载：仅 SUCCESS 且文件有效；禁止客户端传路径。
+     */
+    public DownloadPayload prepareDownloadByRunId(Long runId) {
         SimpleReportRun run = requireRun(runId);
+        return prepareDownloadFromRun(run);
+    }
+
+    /**
+     * 按配置 id 下载最近一次可下载 SUCCESS 稿；配置须未软删。
+     */
+    public DownloadPayload prepareDownloadByReportId(Long reportId) {
+        requireReport(reportId);
+        SimpleReportRun run = findLatestDownloadableRun(reportId);
+        if (run == null) {
+            throw new IllegalArgumentException("暂无可下载文件");
+        }
+        return prepareDownloadFromRun(run);
+    }
+
+    /** @deprecated 请用 {@link #prepareDownloadByRunId(Long)} */
+    public File resolveDownloadFile(Long runId) {
+        return prepareDownloadByRunId(runId).getFile();
+    }
+
+    public static final class DownloadPayload {
+        private final File file;
+        private final String fileName;
+
+        public DownloadPayload(File file, String fileName) {
+            this.file = file;
+            this.fileName = fileName;
+        }
+
+        public File getFile() {
+            return file;
+        }
+
+        public String getFileName() {
+            return fileName;
+        }
+    }
+
+    private DownloadPayload prepareDownloadFromRun(SimpleReportRun run) {
         if (run.getRunStatus() == null || run.getRunStatus() != SimpleReportRun.STATUS_SUCCESS) {
             throw new IllegalArgumentException("报告尚未生成成功");
         }
-        String path = StringUtils.isNotBlank(run.getDeliveryPath()) ? run.getDeliveryPath() : run.getFilePath();
+        String path = resolveStoredPath(run);
         if (StringUtils.isBlank(path)) {
-            throw new IllegalArgumentException("文件路径不存在");
+            throw new IllegalArgumentException("暂无可下载文件");
         }
-        File f = new File(path);
-        if (!f.isFile()) {
+        File file = new File(path.trim());
+        assertUnderAllowedRoot(file, run.getId());
+        if (!file.isFile() || !file.exists()) {
             throw new IllegalArgumentException("文件不存在或已被清理");
         }
-        return f;
+        String downloadName = sanitizeFileName(run.getReportName());
+        if (StringUtils.isBlank(downloadName) || "simple-report".equals(downloadName)) {
+            downloadName = "simple-report-" + run.getId();
+        }
+        if (!downloadName.toLowerCase().endsWith(".docx")) {
+            downloadName = downloadName + ".docx";
+        }
+        return new DownloadPayload(file, downloadName);
+    }
+
+    private SimpleReportRun findLatestDownloadableRun(Long reportId) {
+        if (reportId == null) {
+            return null;
+        }
+        PageRequest pr = PageRequest.of(0, 20);
+        List<SimpleReportRun> runs = runRepository.findByReportIdAndRunStatusOrderByFinishedTimeDescIdDesc(
+                reportId, SimpleReportRun.STATUS_SUCCESS, pr);
+        if (runs == null || runs.isEmpty()) {
+            return null;
+        }
+        for (SimpleReportRun run : runs) {
+            if (canDownload(run)) {
+                return run;
+            }
+        }
+        return null;
+    }
+
+    private boolean canDownload(SimpleReportRun run) {
+        if (run == null) {
+            return false;
+        }
+        if (run.getRunStatus() == null || run.getRunStatus() != SimpleReportRun.STATUS_SUCCESS) {
+            return false;
+        }
+        String path = resolveStoredPath(run);
+        if (StringUtils.isBlank(path)) {
+            return false;
+        }
+        File file = new File(path.trim());
+        if (!file.isFile() || !file.exists()) {
+            return false;
+        }
+        try {
+            assertUnderAllowedRoot(file, run.getId());
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private static String resolveStoredPath(SimpleReportRun run) {
+        if (StringUtils.isNotBlank(run.getDeliveryPath())) {
+            return run.getDeliveryPath();
+        }
+        return run.getFilePath();
+    }
+
+    private void assertUnderAllowedRoot(File file, Long runId) {
+        try {
+            String canonical = file.getCanonicalPath();
+            if (isUnderBase(canonical, FileUtil.fileConfig.getPrefixFilePhysicalPath())) {
+                return;
+            }
+            String deliveryRoot = properties.getDeliveryRoot();
+            if (StringUtils.isBlank(deliveryRoot)) {
+                deliveryRoot = CommonUtil.getBasePath("report") + "simple-delivery";
+            }
+            if (isUnderBase(canonical, deliveryRoot)) {
+                return;
+            }
+            logger.warn("simple-report download path outside root, runId=" + runId + ", path=" + canonical);
+            throw new IllegalArgumentException("文件路径非法");
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.warn("simple-report download path check failed, runId=" + runId, e);
+            throw new IllegalArgumentException("文件不可用");
+        }
+    }
+
+    private static boolean isUnderBase(String canonical, String base) {
+        if (StringUtils.isBlank(base) || StringUtils.isBlank(canonical)) {
+            return false;
+        }
+        try {
+            String baseCanon = new File(base).getCanonicalPath();
+            return canonical.equals(baseCanon)
+                    || canonical.startsWith(baseCanon + File.separator);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     void onGenerateSuccess(Integer engineReportId, String filePath) {
@@ -601,6 +739,7 @@ public class SimpleReportService {
             m.put("planMd", run.getPlanMd());
         }
         m.put("runStatus", run.getRunStatus());
+        m.put("canDownload", canDownload(run));
         m.put("engineReportId", run.getEngineReportId());
         m.put("warnCount", run.getWarnCount());
         m.put("filePath", run.getFilePath());

@@ -307,19 +307,30 @@ public class SimpleReportController {
         return result;
     }
 
+    @GetMapping("/download")
+    public ResponseEntity<?> downloadByReportId(@RequestParam("id") Long id) {
+        try {
+            SimpleReportService.DownloadPayload payload = simpleReportService.prepareDownloadByReportId(id);
+            return buildDocxResponse(payload);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> result = new HashMap<String, Object>();
+            result.put("code", -1);
+            result.put("message", e.getMessage());
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(result);
+        } catch (Exception e) {
+            logger.error("simple-report download by id failed, id=" + id, e);
+            Map<String, Object> result = new HashMap<String, Object>();
+            result.put("code", -1);
+            result.put("message", "下载失败");
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(result);
+        }
+    }
+
     @GetMapping("/runs/download")
     public ResponseEntity<?> download(@RequestParam("runId") Long runId) {
         try {
-            File file = simpleReportService.resolveDownloadFile(runId);
-            Resource resource = new FileSystemResource(file);
-            String encoded = encodeFileName(file.getName());
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=\"" + encoded + "\"; filename*=UTF-8''" + encoded)
-                    .contentType(MediaType.parseMediaType(
-                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
-                    .contentLength(file.length())
-                    .body(resource);
+            SimpleReportService.DownloadPayload payload = simpleReportService.prepareDownloadByRunId(runId);
+            return buildDocxResponse(payload);
         } catch (IllegalArgumentException e) {
             Map<String, Object> result = new HashMap<String, Object>();
             result.put("code", -1);
@@ -332,6 +343,20 @@ public class SimpleReportController {
             result.put("message", "下载失败");
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(result);
         }
+    }
+
+    private ResponseEntity<?> buildDocxResponse(SimpleReportService.DownloadPayload payload)
+            throws UnsupportedEncodingException {
+        File file = payload.getFile();
+        Resource resource = new FileSystemResource(file);
+        String encoded = encodeFileName(payload.getFileName());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + encoded + "\"; filename*=UTF-8''" + encoded)
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                .contentLength(file.length())
+                .body(resource);
     }
 
     private static Long toLong(Object v) {

@@ -231,9 +231,10 @@ METRIC 节点的 `statField` 须取自该字典。
 | POST | `/simple-report/create` | 创建配置（可含多 blocks） |
 | POST | `/simple-report/plan` | 生成待确认 Markdown 计划 |
 | POST | `/simple-report/runs/confirm` | 确认后异步出 Word |
-| GET | `/simple-report/runs/download` | 下载交付稿 |
+| GET | `/simple-report/runs/download` | 按 runId 下载交付稿 |
+| GET | `/simple-report/download` | 按配置 id 下载最近成功稿 |
 
-区块渲染风格：`TABLE` / `BAR` / `PIE` / `LINE`。Agent / Skill 应调本 API，不以 Word MCP / python-docx 为主路径。
+区块渲染风格：`TABLE` / `BAR` / `PIE` / `LINE`。Agent / Skill 应调本 API，不以 Word MCP / python-docx 为主路径。下载详见 [`docs/simple_report_download.md`](docs/simple_report_download.md)。
 
 ### 已下线
 
@@ -264,6 +265,7 @@ METRIC 节点的 `statField` 须取自该字典。
 | [docs/report_template_config.md](docs/report_template_config.md) | 模版配置 |
 | [docs/grad_employment_excel_import.md](docs/grad_employment_excel_import.md) | 就业 Excel 导入 |
 | [docs/ai_simple_report.md](docs/ai_simple_report.md) | AI 简化报告 |
+| [docs/simple_report_download.md](docs/simple_report_download.md) | 简化报告下载 |
 | [docs/remove_school_manage.md](docs/remove_school_manage.md) | 去掉学校管理 / 单校默认 |
 | `docs/<feature>/` | 各功能的 PRD、技术方案、库表、API 设计 |
 

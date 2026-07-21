@@ -90,6 +90,7 @@ POST /report/createReport
 - `POST /simple-report/plan` → 待确认 MD；`POST /simple-report/runs/confirm` → 异步 Spire 出稿并落交付目录
 - 可选 `notifyEmail` + QQ SMTP（`MAIL_*`）：生成成功后附件发信
 - Redis `reportId`（engineReportId）= `1000000000 + runId`，避免与 `managed_report.id` 冲突
+- 下载：`GET /simple-report/runs/download?runId=`；配置级 `GET /simple-report/download?id=` — 详见 `docs/simple_report_download.md`
 - Agent/Skill 只调本 API，不以 Word MCP / python-docx 为主路径
 
 ## Build & Run
