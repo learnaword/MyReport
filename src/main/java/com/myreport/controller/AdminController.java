@@ -12,6 +12,6 @@ public class AdminController {
 
     @GetMapping({"/", "/admin"})
     public RedirectView home() {
-        return new RedirectView("/admin/index.html");
+        return new RedirectView("/admin/index.html#intro");
     }
 }

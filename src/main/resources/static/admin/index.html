@@ -297,11 +297,179 @@
     .form-row textarea { min-height: 72px; resize: vertical; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.9rem; }
     .danger-btn { background: #f5e4e4; color: var(--danger); border: 0; border-radius: 8px; padding: 0.55rem 0.9rem; cursor: pointer; }
+    .intro-hero {
+      margin: -0.2rem 0 1.25rem;
+      padding: 1.35rem 1.4rem;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0a2348 0%, #0063E6 100%);
+      color: #fff;
+    }
+    .intro-hero h1 {
+      margin: 0;
+      font-size: 1.45rem;
+      letter-spacing: 0.02em;
+    }
+    .intro-hero p {
+      margin: 0.55rem 0 0;
+      font-size: 0.95rem;
+      line-height: 1.55;
+      opacity: 0.92;
+      max-width: 46rem;
+    }
+    .intro-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.9rem;
+    }
+    .intro-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 0.95rem 1.05rem;
+      background: #f8fafc;
+    }
+    .intro-card h2 {
+      margin: 0 0 0.45rem;
+      font-size: 1rem;
+      color: var(--ink);
+    }
+    .intro-card p, .intro-card li {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+    .intro-card ol, .intro-card ul {
+      margin: 0.35rem 0 0;
+      padding-left: 1.15rem;
+    }
+    .intro-card li + li { margin-top: 0.25rem; }
+    .intro-flow {
+      margin-top: 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 0.95rem 1.05rem;
+      background: #fff;
+    }
+    .intro-flow h2 {
+      margin: 0 0 0.55rem;
+      font-size: 1rem;
+    }
+    .intro-steps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .intro-step {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.75rem;
+      border-radius: 8px;
+      background: #e8eef8;
+      color: var(--ink);
+      font-size: 0.86rem;
+    }
+    .intro-step b {
+      display: inline-flex;
+      width: 1.35rem;
+      height: 1.35rem;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.75rem;
+    }
+    .intro-arrow {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .intro-ai {
+      margin-top: 0.9rem;
+      border: 1px solid #c5d8f5;
+      border-radius: 10px;
+      padding: 0.95rem 1.05rem;
+      background: linear-gradient(180deg, #f3f7fd 0%, #fff 100%);
+    }
+    .intro-ai h2 {
+      margin: 0 0 0.4rem;
+      font-size: 1rem;
+    }
+    .intro-ai > p {
+      margin: 0 0 0.65rem;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+    .intro-ai-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.7rem;
+    }
+    .intro-ai-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.7rem 0.8rem;
+      background: #fff;
+    }
+    .intro-ai-item strong {
+      display: block;
+      margin-bottom: 0.3rem;
+      font-size: 0.88rem;
+      color: var(--ink);
+    }
+    .intro-ai-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+    .intro-stack {
+      margin-top: 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 0.95rem 1.05rem;
+      background: #fff;
+    }
+    .intro-stack h2 {
+      margin: 0 0 0.65rem;
+      font-size: 1rem;
+    }
+    .stack-group + .stack-group { margin-top: 0.75rem; }
+    .stack-group-label {
+      margin: 0 0 0.4rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    .stack-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .stack-tag {
+      display: inline-block;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      background: #e8eef8;
+      color: var(--ink);
+      font-size: 0.82rem;
+      border: 1px solid #d5e0ef;
+    }
+    .stack-tag em {
+      font-style: normal;
+      color: var(--muted);
+      margin-left: 0.25rem;
+      font-size: 0.75rem;
+    }
     @media (max-width: 800px) {
       body { flex-direction: column; }
       aside { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; }
       .brand { width: 100%; padding-bottom: 0.4rem; }
       .table-wrap { max-height: 55vh; }
+      .intro-grid { grid-template-columns: 1fr; }
+      .intro-ai-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -311,14 +479,112 @@
       MyReport
       <small>数据管理台</small>
     </div>
-    <button type="button" class="nav-btn active" data-panel="school">学校管理</button>
+    <button type="button" class="nav-btn active" data-panel="intro">项目介绍</button>
+    <button type="button" class="nav-btn" data-panel="school">学校管理</button>
     <button type="button" class="nav-btn" data-panel="data">数据管理</button>
     <button type="button" class="nav-btn" data-panel="template">模版管理</button>
     <button type="button" class="nav-btn" data-panel="report">报告管理</button>
   </aside>
 
   <main>
-    <section id="panel-school" class="panel">
+    <section id="panel-intro" class="panel">
+      <div class="intro-hero">
+        <h1>MyReport 报告生成平台</h1>
+        <p>面向高校就业质量报告场景：导入学校与毕业生去向数据，配置报告模版与指标，一键聚合生成 Word（.docx）。图表章节可由 AI 统计分析师自动撰写解读文案。</p>
+      </div>
+      <div class="intro-grid">
+        <div class="intro-card">
+          <h2>能做什么</h2>
+          <ul>
+            <li>管理学校基础信息，支持 Excel 批量导入</li>
+            <li>维护毕业生就业去向明细，按学校筛选与导入</li>
+            <li>可视化配置报告标题层级与统计指标</li>
+            <li>按模版聚合数据并异步生成 Word 报告</li>
+          </ul>
+        </div>
+        <div class="intro-card">
+          <h2>管理台模块</h2>
+          <ul>
+            <li><strong>学校管理</strong>：维护学校列表</li>
+            <li><strong>数据管理</strong>：导入与查看就业去向</li>
+            <li><strong>模版管理</strong>：配置章节树与指标字段</li>
+            <li><strong>报告管理</strong>：绑定学校/模版并一键生成下载</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="intro-ai">
+        <h2>AI 能力介绍</h2>
+        <p>报告生成过程中，图表/统计数据会交给「图表统计分析师」Agent：基于 DashScope（通义千问）解读数据并写入 Word 正文，结论有数据依据，文案控制在约 200 字以内。</p>
+        <div class="intro-ai-grid">
+          <div class="intro-ai-item">
+            <strong>图表统计分析师</strong>
+            <span>读取图表上下文（strData），自动生成简洁、专业的解读与见解，嵌入报告正文。</span>
+          </div>
+          <div class="intro-ai-item">
+            <strong>模型与开关</strong>
+            <span>默认模型 qwen-plus；可通过配置开启/关闭，未配置 API Key 时自动跳过，不影响报告生成。</span>
+          </div>
+          <div class="intro-ai-item">
+            <strong>失败兜底</strong>
+            <span>调用失败或无结果时不中断生成流程，保证 Word 仍可正常落盘与下载。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="intro-stack">
+        <h2>技术栈</h2>
+        <div class="stack-group">
+          <p class="stack-group-label">后端与运行时</p>
+          <div class="stack-tags">
+            <span class="stack-tag">Java 8</span>
+            <span class="stack-tag">Spring Boot <em>2.7.18</em></span>
+            <span class="stack-tag">Spring MVC REST</span>
+            <span class="stack-tag">Fastjson <em>1.2.83</em></span>
+            <span class="stack-tag">JUnit 5</span>
+          </div>
+        </div>
+        <div class="stack-group">
+          <p class="stack-group-label">数据与缓存</p>
+          <div class="stack-tags">
+            <span class="stack-tag">Spring Data JPA</span>
+            <span class="stack-tag">MySQL 8</span>
+            <span class="stack-tag">Jedis <em>进度 / 锁</em></span>
+          </div>
+        </div>
+        <div class="stack-group">
+          <p class="stack-group-label">Word 引擎</p>
+          <div class="stack-tags">
+            <span class="stack-tag">Spire.Doc <em>11.1.1</em></span>
+            <span class="stack-tag">Apache POI <em>4.1.2</em></span>
+          </div>
+        </div>
+        <div class="stack-group">
+          <p class="stack-group-label">AI</p>
+          <div class="stack-tags">
+            <span class="stack-tag">DashScope</span>
+            <span class="stack-tag">qwen-plus</span>
+            <span class="stack-tag">ChartStatAnalystAgent</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="intro-flow">
+        <h2>推荐使用流程</h2>
+        <div class="intro-steps">
+          <span class="intro-step"><b>1</b>导入学校</span>
+          <span class="intro-arrow">→</span>
+          <span class="intro-step"><b>2</b>导入就业数据</span>
+          <span class="intro-arrow">→</span>
+          <span class="intro-step"><b>3</b>配置报告模版</span>
+          <span class="intro-arrow">→</span>
+          <span class="intro-step"><b>4</b>创建并生成报告</span>
+        </div>
+        <p class="desc" style="margin-top:0.75rem">打开本页默认进入项目介绍；从左侧菜单进入各业务模块即可开始操作。</p>
+      </div>
+    </section>
+
+    <section id="panel-school" class="panel hidden">
       <div class="head">
         <div>
           <h1>学校管理</h1>
@@ -633,6 +899,7 @@
       }
 
       function switchPanel(name) {
+        $("panel-intro").classList.toggle("hidden", name !== "intro");
         $("panel-school").classList.toggle("hidden", name !== "school");
         $("panel-data").classList.toggle("hidden", name !== "data");
         $("panel-template").classList.toggle("hidden", name !== "template");
@@ -1890,8 +2157,10 @@
         }
       });
 
-      var hash = (location.hash || "#school").replace("#", "");
-      if (hash !== "school" && hash !== "data" && hash !== "template" && hash !== "report") hash = "school";
+      var hash = (location.hash || "#intro").replace("#", "");
+      if (hash !== "intro" && hash !== "school" && hash !== "data" && hash !== "template" && hash !== "report") {
+        hash = "intro";
+      }
       loadSchoolOptions().then(function () { switchPanel(hash); });
     })();
   </script>
