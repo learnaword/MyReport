@@ -711,6 +711,10 @@ public class ReportTemplateService {
         if (statField.length() > 128) {
             throw new IllegalArgumentException("统计字段不能超过128字");
         }
+        String canonicalStatField = GradEmploymentStatFieldCatalog.canonicalize(statField);
+        if (canonicalStatField == null) {
+            throw new IllegalArgumentException("统计字段不在可选列表中");
+        }
         if (!ReportTemplateNode.FORMAT_PERCENT.equals(valueFormat)
                 && !ReportTemplateNode.FORMAT_COUNT.equals(valueFormat)) {
             throw new IllegalArgumentException("valueFormat 必须为 PERCENT 或 COUNT");
@@ -728,7 +732,7 @@ public class ReportTemplateService {
         } else {
             chartStyle = null;
         }
-        node.setStatField(statField.trim());
+        node.setStatField(canonicalStatField);
         node.setValueFormat(valueFormat);
         node.setDisplayType(displayType);
         node.setChartStyle(chartStyle);

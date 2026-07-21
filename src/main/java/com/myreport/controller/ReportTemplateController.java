@@ -1,6 +1,7 @@
 package com.myreport.controller;
 
 import com.myreport.entity.ReportTemplate;
+import com.myreport.service.GradEmploymentStatFieldCatalog;
 import com.myreport.service.ReportTemplateService;
 import org.apache.log4j.Logger;
 import org.springframework.data.domain.Page;
@@ -97,6 +98,27 @@ public class ReportTemplateController {
             result.put("message", e.getMessage());
         } catch (Exception e) {
             logger.error("report-template detail failed", e);
+            result.put("code", -1);
+            result.put("message", "查询失败");
+        }
+        return result;
+    }
+
+    /**
+     * 指标统计字段字典：label=中文，value=库列名。
+     *
+     * @see docs/metric_field_select/API设计.md
+     */
+    @GetMapping("/stat-fields")
+    @ResponseBody
+    public Map<String, Object> statFields() {
+        Map<String, Object> result = new HashMap<String, Object>();
+        try {
+            result.put("code", 0);
+            result.put("message", "ok");
+            result.put("fields", GradEmploymentStatFieldCatalog.listOptions());
+        } catch (Exception e) {
+            logger.error("report-template stat-fields failed", e);
             result.put("code", -1);
             result.put("message", "查询失败");
         }

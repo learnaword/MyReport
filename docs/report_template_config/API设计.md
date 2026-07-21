@@ -40,6 +40,7 @@
 | GET | `/report-template/list` | 模版分页列表 |
 | POST | `/report-template/create` | 创建空模版（仅头信息） |
 | GET | `/report-template/detail` | 模版详情（含整棵树） |
+| GET | `/report-template/stat-fields` | 指标统计字段字典（中文 label + 库列名 value）；见 `docs/metric_field_select/API设计.md` |
 | POST | `/report-template/update` | 更新模版头（名称/说明/状态） |
 | POST | `/report-template/delete` | 软删模版（级联软删全部节点） |
 | POST | `/report-template/copy` | 复制模版（新 ID + 深拷贝节点 + 外观） |
@@ -103,7 +104,7 @@
 | nodeType | String | `METRIC` |
 | level | Integer | = 父.level + 1 |
 | name | String | 指标独立名称 |
-| statField | String | 数据集字段名 |
+| statField | String | 就业宽表白名单列名（规范 snake_case）；可选值见 `GET /report-template/stat-fields` |
 | valueFormat | String | PERCENT / COUNT |
 | displayType | String | TABLE / CHART |
 | chartStyle | String\|null | CHART 时必有；TABLE 时为 null |
@@ -220,7 +221,7 @@
           "nodeType": "METRIC",
           "level": 2,
           "name": "就业率",
-          "statField": "employment_rate",
+          "statField": "college_name",
           "valueFormat": "PERCENT",
           "displayType": "CHART",
           "chartStyle": "BAR",
@@ -474,7 +475,7 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| statField | String | 是 | 数据集字段名 |
+| statField | String | 是 | 须为 `GET /report-template/stat-fields` 的 `value`（或可归一别名）；非法拒绝 |
 | valueFormat | String | 是 | PERCENT / COUNT |
 | displayType | String | 是 | TABLE / CHART |
 | chartStyle | String | 条件 | displayType=CHART 必填；TABLE 勿传或 null |
@@ -497,11 +498,10 @@
   "templateId": 1,
   "parentId": 10,
   "nodeType": "METRIC",
-  "name": "就业率",
-  "statField": "employment_rate",
-  "valueFormat": "PERCENT",
-  "displayType": "CHART",
-  "chartStyle": "BAR"
+  "name": "分学院人数",
+  "statField": "college_name",
+  "valueFormat": "COUNT",
+  "displayType": "TABLE"
 }
 ```
 
@@ -547,9 +547,9 @@
 ```json
 {
   "id": 11,
-  "name": "就业率",
-  "statField": "employment_rate",
-  "valueFormat": "PERCENT",
+  "name": "分学院人数",
+  "statField": "college_name",
+  "valueFormat": "COUNT",
   "displayType": "TABLE",
   "chartStyle": null
 }
