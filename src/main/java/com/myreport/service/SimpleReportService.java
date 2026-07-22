@@ -259,9 +259,23 @@ public class SimpleReportService {
 
     @Transactional
     public Map<String, Object> plan(Long id, String userPrompt, int triggerType) {
+        return plan(id, userPrompt, null, triggerType);
+    }
+
+    /**
+     * 生成计划。若传入 blocks，先整表替换再出计划（与当前界面配置原子同步）。
+     */
+    @Transactional
+    public Map<String, Object> plan(Long id, String userPrompt, List<Object> blocksToSync, int triggerType) {
         SimpleReport r = requireReport(id);
         if (r.getStatus() == null || r.getStatus() != SimpleReport.STATUS_ENABLED) {
             throw new IllegalArgumentException("报告已停用");
+        }
+        if (blocksToSync != null) {
+            if (blocksToSync.isEmpty()) {
+                throw new IllegalArgumentException("请先配置至少一个数据区块");
+            }
+            replaceBlocks(id, blocksToSync);
         }
         List<SimpleReportBlock> blocks = blockRepository.findByReportIdOrderBySortOrderAscIdAsc(id);
         if (blocks.isEmpty()) {
@@ -295,6 +309,7 @@ public class SimpleReportService {
         out.put("runStatus", run.getRunStatus());
         out.put("planMd", planMd);
         out.put("userPrompt", run.getUserPrompt() == null ? "" : run.getUserPrompt());
+        out.put("blockCount", blocks.size());
         return out;
     }
 
@@ -801,9 +816,10 @@ public class SimpleReportService {
         for (SimpleReportBlock b : blocks) {
             sb.append("## ").append(i++).append(". ").append(b.getTitle()).append("\n");
             String purpose = StringUtils.isNotBlank(b.getPromptHint()) ? b.getPromptHint() : b.getTitle();
+            sb.append("- 标题：").append(b.getTitle()).append("\n");
+            sb.append("- 样式：").append(b.getRenderStyle()).append("\n");
             sb.append("- 查询目的：").append(purpose).append("\n");
             sb.append("- 接口：").append(b.getHttpMethod()).append(" ").append(b.getUrl()).append("\n");
-            sb.append("- 渲染：").append(b.getRenderStyle()).append("\n");
             sb.append("- 预期数据：labels/values\n\n");
         }
         sb.append("## 交付\n");

@@ -352,10 +352,88 @@
       max-height: 92vh;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
     .modal.modal-lg .tree {
       max-height: min(58vh, 520px);
       flex: 1;
+    }
+    .modal.modal-lg .modal-body-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 0.15rem;
+    }
+    .sr-plan-preview {
+      display: none;
+      margin: 0.35rem 0 0;
+      max-height: min(58vh, 560px);
+      min-height: 220px;
+      overflow: auto;
+      background: #f6f7f9;
+      padding: 0.9rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .sr-plan-preview.is-visible { display: block; }
+    .sr-blocks-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.45rem;
+    }
+    .sr-blocks-toolbar .hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .sr-blocks-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    .sr-block-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1.1fr 0.9fr auto;
+      gap: 0.45rem;
+      align-items: end;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 0.55rem 0.65rem;
+      background: #fafbfc;
+    }
+    .sr-block-row label {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 0.15rem;
+    }
+    .sr-block-row input,
+    .sr-block-row select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.4rem 0.5rem;
+      font: inherit;
+      font-size: 0.86rem;
+      background: #fff;
+    }
+    .sr-block-row .mini-danger {
+      background: transparent;
+      border: 0;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 0.82rem;
+      padding: 0.35rem 0.4rem;
+      white-space: nowrap;
+      margin-bottom: 0.1rem;
+    }
+    @media (max-width: 780px) {
+      .sr-block-row { grid-template-columns: 1fr 1fr; }
     }
     .modal-mask.form-layer { z-index: 30; }
     .modal h3 { margin: 0 0 0.8rem; font-size: 1.05rem; }
@@ -370,6 +448,7 @@
     }
     .form-row textarea { min-height: 72px; resize: vertical; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.9rem; }
+    .modal.modal-lg > .modal-actions { flex-shrink: 0; }
     .danger-btn { background: #f5e4e4; color: var(--danger); border: 0; border-radius: 8px; padding: 0.55rem 0.9rem; cursor: pointer; }
     .intro-hero {
       margin: -0.2rem 0 1.25rem;
@@ -733,14 +812,14 @@
             <ul>
               <li><strong>标题</strong>：Word 中该段章节名</li>
               <li><strong>接口</strong>：GET/POST + URL（host 须白名单）</li>
-              <li><strong>渲染样式</strong>：TABLE / BAR / PIE / LINE</li>
+              <li><strong>渲染样式</strong>：TABLE / BAR / PIE</li>
               <li><strong>上游约定</strong>：返回 <code>{ labels, values }</code></li>
             </ul>
           </div>
         </div>
-        <p class="desc" style="margin-top:0.65rem">管理台「简化报告 → 新建」中，区块可按一行一条填写：</p>
-        <pre class="intro-code">学院就业人数 | GET | http://127.0.0.1:9091/demo-stat/by-college | BAR
-去向分布 | GET | http://127.0.0.1:9091/demo-stat/destination | TABLE</pre>
+        <p class="desc" style="margin-top:0.65rem">管理台「简化报告 → 新建」中，区块每行三项：数据源、标题、样式（METHOD/URL 由数据源自动带出）：</p>
+        <pre class="intro-code">数据源「按学院人数」 + 标题「学院人数」 + 样式 BAR
+数据源「按去向分布」 + 标题「去向分布」 + 样式 TABLE</pre>
 
         <h3 class="intro-sub">使用流程</h3>
         <div class="intro-steps">
@@ -777,7 +856,7 @@
           </div>
           <div class="intro-ai-item">
             <strong>图表解读文案</strong>
-            <span>出稿时柱状/饼/折线等图表可由「图表统计分析师」（DashScope qwen-plus）写约 200 字解读嵌入正文。</span>
+            <span>出稿时柱状/饼图等可由「图表统计分析师」（DashScope qwen-plus）写约 200 字解读嵌入正文。</span>
           </div>
         </div>
       </div>
@@ -1080,32 +1159,40 @@
     <div class="modal modal-lg">
       <h3 id="srModalTitle">新建简化报告</h3>
       <div id="srModalMsg" class="msg"></div>
-      <div class="form-row">
-        <label>名称</label>
-        <input id="srName" type="text" placeholder="必填" />
+      <div class="modal-body-scroll">
+        <div class="form-row">
+          <label>名称</label>
+          <input id="srName" type="text" placeholder="必填" />
+        </div>
+        <div class="form-row">
+          <label>交付目录（相对根，无 ../）</label>
+          <input id="srDeliveryDir" type="text" placeholder="如 simple/weekly" />
+        </div>
+        <div class="form-row">
+          <label>通知邮箱（生成成功发附件；多个用逗号分隔；需配置 QQ SMTP）</label>
+          <input id="srNotifyEmail" type="text" placeholder="如 yourname@qq.com" />
+        </div>
+        <div class="form-row">
+          <label>推送数据配置</label>
+          <div class="sr-blocks-toolbar">
+            <span class="hint">每行：数据源、标题、样式</span>
+            <button type="button" class="ghost-btn" id="srBlockAddBtn">+ 添加区块</button>
+          </div>
+          <div id="srBlocksList" class="sr-blocks-list"></div>
+        </div>
+        <div class="form-row">
+          <label>生成计划诉求（可选，点「生成计划」时用）</label>
+          <input id="srUserPrompt" type="text" placeholder="如：本周概况" />
+        </div>
+        <div id="srRunStatusWrap" class="form-row" style="display:none">
+          <label>当前运行状态</label>
+          <div id="srRunStatus"></div>
+        </div>
+        <div class="form-row" id="srPlanPreviewWrap" style="display:none">
+          <label>计划预览（planMd）</label>
+          <pre id="srPlanPreview" class="sr-plan-preview"></pre>
+        </div>
       </div>
-      <div class="form-row">
-        <label>交付目录（相对根，无 ../）</label>
-        <input id="srDeliveryDir" type="text" placeholder="如 simple/weekly" />
-      </div>
-      <div class="form-row">
-        <label>通知邮箱（生成成功发附件；多个用逗号分隔；需配置 QQ SMTP）</label>
-        <input id="srNotifyEmail" type="text" placeholder="如 yourname@qq.com" />
-      </div>
-      <div class="form-row">
-        <label>区块（每行：标题|METHOD|URL|STYLE）</label>
-        <textarea id="srBlocksText" rows="6" style="width:100%;font-family:ui-monospace,monospace;font-size:12px"
-          placeholder="学院人数|GET|http://127.0.0.1:9091/demo/stat/by-college|BAR&#10;去向分布|GET|http://127.0.0.1:9091/demo/stat/by-destination|TABLE"></textarea>
-      </div>
-      <div class="form-row">
-        <label>生成计划诉求（可选，点「生成计划」时用）</label>
-        <input id="srUserPrompt" type="text" placeholder="如：本周概况" />
-      </div>
-      <div id="srRunStatusWrap" class="form-row" style="display:none">
-        <label>当前运行状态</label>
-        <div id="srRunStatus"></div>
-      </div>
-      <pre id="srPlanPreview" style="display:none;max-height:220px;overflow:auto;background:#f6f7f9;padding:0.75rem;border-radius:8px;font-size:12px;white-space:pre-wrap"></pre>
       <div class="modal-actions">
         <button type="button" class="ghost-btn" id="srModalCancel">关闭</button>
         <button type="button" class="ghost-btn" id="srPlanBtn">生成计划</button>
@@ -2444,31 +2531,168 @@
         }
       }
 
-      function parseSrBlocksText(text) {
-        var lines = (text || "").split(/\r?\n/);
+      var SR_DEMO_BASE = "http://127.0.0.1:9091/demo/stat";
+      var SR_DEMO_PRESETS = [
+        { key: "by-college", label: "按学院人数", title: "学院人数", url: SR_DEMO_BASE + "/by-college", method: "GET", style: "BAR" },
+        { key: "by-destination", label: "按去向分布", title: "去向分布", url: SR_DEMO_BASE + "/by-destination", method: "GET", style: "TABLE" },
+        { key: "by-gender", label: "按性别分布", title: "性别分布", url: SR_DEMO_BASE + "/by-gender", method: "GET", style: "PIE" },
+        { key: "by-degree", label: "按学历层次", title: "学历层次", url: SR_DEMO_BASE + "/by-degree", method: "GET", style: "BAR" },
+        { key: "by-industry", label: "按就业行业", title: "就业行业", url: SR_DEMO_BASE + "/by-industry", method: "GET", style: "BAR" },
+        { key: "by-region", label: "按就业地区", title: "就业地区", url: SR_DEMO_BASE + "/by-region", method: "GET", style: "TABLE" },
+        { key: "employment-rate-by-year", label: "历年就业率", title: "历年就业率", url: SR_DEMO_BASE + "/employment-rate-by-year", method: "GET", style: "BAR" }
+      ];
+
+      function findSrPresetByKey(key) {
+        for (var i = 0; i < SR_DEMO_PRESETS.length; i++) {
+          if (SR_DEMO_PRESETS[i].key === key) return SR_DEMO_PRESETS[i];
+        }
+        return null;
+      }
+
+      function findSrPresetKey(url) {
+        var u = (url || "").trim();
+        for (var i = 0; i < SR_DEMO_PRESETS.length; i++) {
+          if (SR_DEMO_PRESETS[i].url === u) return SR_DEMO_PRESETS[i].key;
+        }
+        return "";
+      }
+
+      function renderSrBlocks(blocks) {
+        var list = $("srBlocksList");
+        list.innerHTML = "";
+        var rows = blocks && blocks.length
+          ? blocks
+          : [{ title: SR_DEMO_PRESETS[0].title, httpMethod: "GET", url: SR_DEMO_PRESETS[0].url, renderStyle: SR_DEMO_PRESETS[0].style }];
+        for (var i = 0; i < rows.length; i++) {
+          list.appendChild(createSrBlockRow(rows[i]));
+        }
+      }
+
+      function createSrBlockRow(block) {
+        block = block || {};
+        var row = document.createElement("div");
+        row.className = "sr-block-row";
+
+        var style = (block.renderStyle || "BAR").toUpperCase();
+        var presetKey = findSrPresetKey(block.url);
+        var url = block.url || "";
+        var method = ((block.httpMethod || "GET") + "").toUpperCase() === "POST" ? "POST" : "GET";
+        if (!presetKey && !url) {
+          presetKey = SR_DEMO_PRESETS[0].key;
+          url = SR_DEMO_PRESETS[0].url;
+          method = "GET";
+          if (!block.title) block.title = SR_DEMO_PRESETS[0].title;
+          if (!block.renderStyle) style = SR_DEMO_PRESETS[0].style;
+        }
+
+        var presetOpts = SR_DEMO_PRESETS.map(function (p) {
+          return '<option value="' + p.key + '"' + (p.key === presetKey ? " selected" : "") + ">"
+            + p.label + "</option>";
+        }).join("");
+        if (!presetKey && url) {
+          presetOpts = '<option value="__custom__" selected>自定义（已保存）</option>' + presetOpts;
+        }
+
+        row.innerHTML =
+          '<div><label>数据源</label><select class="sr-block-source">' + presetOpts + '</select></div>'
+          + '<div><label>标题</label><input class="sr-block-title" type="text" placeholder="如：学院人数" /></div>'
+          + '<div><label>样式</label>'
+          + '<select class="sr-block-style">'
+          + '<option value="TABLE">TABLE 表格</option>'
+          + '<option value="BAR">BAR 柱状图</option>'
+          + '<option value="PIE">PIE 饼图</option>'
+          + '</select></div>'
+          + '<button type="button" class="mini-danger sr-block-remove">删除</button>';
+
+        row.setAttribute("data-url", url);
+        row.setAttribute("data-method", method);
+        row.querySelector(".sr-block-title").value = block.title || "";
+        row.querySelector(".sr-block-style").value =
+          (style === "TABLE" || style === "PIE") ? style : "BAR";
+
+        row.querySelector(".sr-block-source").addEventListener("change", function () {
+          var key = this.value;
+          if (key === "__custom__") return;
+          var preset = findSrPresetByKey(key);
+          if (!preset) return;
+          row.setAttribute("data-url", preset.url);
+          row.setAttribute("data-method", preset.method || "GET");
+          row.querySelector(".sr-block-title").value = preset.title;
+          row.querySelector(".sr-block-style").value = preset.style;
+          // 切到联调源后去掉「自定义」选项
+          var customOpt = this.querySelector('option[value="__custom__"]');
+          if (customOpt) this.removeChild(customOpt);
+        });
+
+        row.querySelector(".sr-block-remove").addEventListener("click", function () {
+          var list = $("srBlocksList");
+          if (list.children.length <= 1) {
+            var first = SR_DEMO_PRESETS[0];
+            row.setAttribute("data-url", first.url);
+            row.setAttribute("data-method", "GET");
+            row.querySelector(".sr-block-source").value = first.key;
+            row.querySelector(".sr-block-title").value = first.title;
+            row.querySelector(".sr-block-style").value = first.style;
+            return;
+          }
+          list.removeChild(row);
+        });
+
+        return row;
+      }
+
+      function collectSrBlocksFromUi() {
+        var rows = $("srBlocksList").querySelectorAll(".sr-block-row");
         var blocks = [];
-        for (var i = 0; i < lines.length; i++) {
-          var line = lines[i].trim();
-          if (!line) continue;
-          var parts = line.split("|");
-          if (parts.length < 4) {
-            throw new Error("第 " + (i + 1) + " 行格式须为：标题|METHOD|URL|STYLE");
+        for (var i = 0; i < rows.length; i++) {
+          var row = rows[i];
+          var title = row.querySelector(".sr-block-title").value.trim();
+          var style = row.querySelector(".sr-block-style").value.trim();
+          var url = (row.getAttribute("data-url") || "").trim();
+          var method = (row.getAttribute("data-method") || "GET").trim();
+          var source = row.querySelector(".sr-block-source").value;
+          if (source && source !== "__custom__") {
+            var preset = findSrPresetByKey(source);
+            if (preset) {
+              url = preset.url;
+              method = preset.method || "GET";
+            }
+          }
+          if (!title || !url) {
+            throw new Error("第 " + (i + 1) + " 行：请选择数据源并填写标题");
           }
           blocks.push({
-            title: parts[0].trim(),
-            httpMethod: parts[1].trim(),
-            url: parts[2].trim(),
-            renderStyle: parts[3].trim()
+            title: title,
+            httpMethod: method || "GET",
+            url: url,
+            renderStyle: style || "BAR"
           });
         }
         return blocks;
       }
 
-      function blocksToText(blocks) {
-        if (!blocks || !blocks.length) return "";
-        return blocks.map(function (b) {
-          return [b.title, b.httpMethod, b.url, b.renderStyle].join("|");
-        }).join("\n");
+      function addSrBlockRow(block) {
+        if (!block) {
+          var used = {};
+          var sels = $("srBlocksList").querySelectorAll(".sr-block-source");
+          for (var i = 0; i < sels.length; i++) {
+            used[sels[i].value] = true;
+          }
+          var pick = SR_DEMO_PRESETS[0];
+          for (var j = 0; j < SR_DEMO_PRESETS.length; j++) {
+            if (!used[SR_DEMO_PRESETS[j].key]) {
+              pick = SR_DEMO_PRESETS[j];
+              break;
+            }
+          }
+          block = {
+            title: pick.title,
+            httpMethod: pick.method || "GET",
+            url: pick.url,
+            renderStyle: pick.style
+          };
+        }
+        $("srBlocksList").appendChild(createSrBlockRow(block));
       }
 
       function setSrRunStatus(runStatus, failMessage) {
@@ -2481,12 +2705,27 @@
         $("srRunStatus").innerHTML = "";
       }
 
+      function clearSrPlanPreview() {
+        $("srPlanPreviewWrap").style.display = "none";
+        $("srPlanPreview").classList.remove("is-visible");
+        $("srPlanPreview").textContent = "";
+      }
+
+      function setSrPlanPreview(planMd) {
+        if (!planMd) {
+          clearSrPlanPreview();
+          return;
+        }
+        $("srPlanPreviewWrap").style.display = "block";
+        $("srPlanPreview").classList.add("is-visible");
+        $("srPlanPreview").textContent = planMd;
+      }
+
       function openSrModal(id) {
         srEditId = id || null;
         srPendingRunId = null;
         $("srModalTitle").textContent = id ? "编辑简化报告" : "新建简化报告";
-        $("srPlanPreview").style.display = "none";
-        $("srPlanPreview").textContent = "";
+        clearSrPlanPreview();
         $("srConfirmBtn").style.display = "none";
         $("srDownloadBtn").style.display = "none";
         $("srUserPrompt").value = "";
@@ -2496,7 +2735,7 @@
           $("srName").value = "";
           $("srDeliveryDir").value = "simple/demo";
           $("srNotifyEmail").value = "";
-          $("srBlocksText").value = "";
+          renderSrBlocks([]);
           $("srModal").classList.add("show");
           $("srModal").setAttribute("aria-hidden", "false");
           return;
@@ -2511,7 +2750,7 @@
             $("srName").value = body.name || "";
             $("srDeliveryDir").value = body.deliveryDir || "";
             $("srNotifyEmail").value = body.notifyEmail || "";
-            $("srBlocksText").value = blocksToText(body.blocks);
+            renderSrBlocks(body.blocks || []);
             $("srModal").classList.add("show");
             $("srModal").setAttribute("aria-hidden", "false");
             setSrRunStatus(body.latestRunStatus, body.latestFailMessage);
@@ -2548,8 +2787,7 @@
                 }
                 $("srUserPrompt").value = detail.userPrompt || "";
                 if (detail.planMd) {
-                  $("srPlanPreview").style.display = "block";
-                  $("srPlanPreview").textContent = detail.planMd;
+                  setSrPlanPreview(detail.planMd);
                 }
                 setSrRunStatus(detail.runStatus, detail.failMessage);
                 if (detail.runStatus === 1) {
@@ -2631,6 +2869,7 @@
 
       $("srCreateBtn").addEventListener("click", function () { openSrModal(null); });
       $("srRefreshBtn").addEventListener("click", function () { loadSimpleReports(); });
+      $("srBlockAddBtn").addEventListener("click", function () { addSrBlockRow(null); });
       $("srPrev").addEventListener("click", function () {
         if (srPage > 0) { srPage--; loadSimpleReports(); }
       });
@@ -2640,20 +2879,22 @@
       });
       $("srModalCancel").addEventListener("click", closeSrModal);
 
-      $("srModalOk").addEventListener("click", function () {
+      /** 将弹窗内名称/交付/邮箱/区块落到库；成功 resolve，失败 reject */
+      function saveSrConfigFromUi() {
         var name = $("srName").value.trim();
         var deliveryDir = $("srDeliveryDir").value.trim();
         var notifyEmail = $("srNotifyEmail").value.trim();
         var blocks;
         try {
-          blocks = parseSrBlocksText($("srBlocksText").value);
+          blocks = collectSrBlocksFromUi();
         } catch (e) {
-          setMsg($("srModalMsg"), e.message, false);
-          return;
+          return Promise.reject(e);
         }
         if (!name || !deliveryDir) {
-          setMsg($("srModalMsg"), "名称与交付目录必填", false);
-          return;
+          return Promise.reject(new Error("名称与交付目录必填"));
+        }
+        if (!blocks.length) {
+          return Promise.reject(new Error("请至少配置一个数据区块"));
         }
         var req = srEditId
           ? postJson("/simple-report/update", {
@@ -2671,12 +2912,17 @@
               notifyEmail: notifyEmail,
               blocks: blocks
             });
-        req.then(function (res) {
+        return req.then(function (res) {
           if (res.code !== 0) {
-            setMsg($("srModalMsg"), res.message || "保存失败", false);
-            return;
+            throw new Error(res.message || "保存失败");
           }
           if (!srEditId && res.id) srEditId = res.id;
+          return res;
+        });
+      }
+
+      $("srModalOk").addEventListener("click", function () {
+        saveSrConfigFromUi().then(function () {
           setMsg($("srModalMsg"), "保存成功", true);
           setMsg($("srMsg"), "保存成功", true);
           loadSimpleReports();
@@ -2686,14 +2932,49 @@
       });
 
       $("srPlanBtn").addEventListener("click", function () {
-        if (!srEditId) {
-          setMsg($("srModalMsg"), "请先保存配置", false);
+        var name = $("srName").value.trim();
+        var deliveryDir = $("srDeliveryDir").value.trim();
+        var notifyEmail = $("srNotifyEmail").value.trim();
+        var promptVal = $("srUserPrompt").value.trim();
+        var blocks;
+        try {
+          blocks = collectSrBlocksFromUi();
+        } catch (e) {
+          setMsg($("srModalMsg"), e.message, false);
           return;
         }
-        var promptVal = $("srUserPrompt").value.trim();
-        postJson("/simple-report/plan", {
-          id: srEditId,
-          userPrompt: promptVal
+        if (!name || !deliveryDir) {
+          setMsg($("srModalMsg"), "名称与交付目录必填", false);
+          return;
+        }
+        if (!blocks.length) {
+          setMsg($("srModalMsg"), "请至少配置一个数据区块", false);
+          return;
+        }
+
+        // 新建时先创建配置；再带上当前 blocks 调 plan（同一请求内替换区块，保证计划与界面一致）
+        var ready = Promise.resolve();
+        if (!srEditId) {
+          ready = postJson("/simple-report/create", {
+            name: name,
+            deliveryDir: deliveryDir,
+            notifyEmail: notifyEmail,
+            blocks: blocks
+          }).then(function (res) {
+            if (res.code !== 0) throw new Error(res.message || "创建失败");
+            srEditId = res.id;
+          });
+        }
+
+        ready.then(function () {
+          return postJson("/simple-report/plan", {
+            id: srEditId,
+            userPrompt: promptVal,
+            name: name,
+            deliveryDir: deliveryDir,
+            notifyEmail: notifyEmail,
+            blocks: blocks
+          });
         }).then(function (res) {
           if (res.code !== 0) {
             setMsg($("srModalMsg"), res.message || "计划失败", false);
@@ -2703,13 +2984,19 @@
           $("srUserPrompt").value = (res.userPrompt != null && res.userPrompt !== "")
             ? res.userPrompt
             : promptVal;
-          $("srPlanPreview").style.display = "block";
-          $("srPlanPreview").textContent = res.planMd || "";
+          setSrPlanPreview(res.planMd || "");
           $("srConfirmBtn").style.display = "inline-block";
           $("srDownloadBtn").style.display = "none";
           setSrRunStatus(1, null);
-          setMsg($("srModalMsg"), "计划已生成（runId=" + res.runId + "），请确认后生成 Word", true);
+          setMsg($("srModalMsg"),
+            "已按当前 " + blocks.length + " 个区块生成计划（runId=" + res.runId + "）", true);
           loadSimpleReports();
+          var previewEl = $("srPlanPreview");
+          if (previewEl && previewEl.scrollIntoView) {
+            previewEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+        }).catch(function (e) {
+          setMsg($("srModalMsg"), e.message || "生成计划失败", false);
         });
       });
 

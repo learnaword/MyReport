@@ -19,6 +19,11 @@ import java.util.Map;
  * <pre>
  * GET http://127.0.0.1:9091/demo/stat/by-college
  * GET http://127.0.0.1:9091/demo/stat/by-destination
+ * GET http://127.0.0.1:9091/demo/stat/by-gender
+ * GET http://127.0.0.1:9091/demo/stat/by-degree
+ * GET http://127.0.0.1:9091/demo/stat/by-industry
+ * GET http://127.0.0.1:9091/demo/stat/by-region
+ * GET http://127.0.0.1:9091/demo/stat/employment-rate-by-year
  * </pre>
  * 本地拉数须开启 {@code myreport.simple-report.allow-loopback=true}。
  */
@@ -58,6 +63,68 @@ public class DemoStatController {
         result.put("labels", Arrays.asList(
                 "签就业协议", "升学", "灵活就业", "待就业", "出国出境"));
         result.put("values", Arrays.asList(210, 95, 48, 22, 15));
+        return result;
+    }
+
+    /**
+     * 按性别分布（适合饼图 PIE 或表格 TABLE）。
+     */
+    @GetMapping("/by-gender")
+    @ResponseBody
+    public Map<String, Object> byGender() {
+        Map<String, Object> result = new HashMap<String, Object>();
+        result.put("labels", Arrays.asList("男", "女"));
+        result.put("values", Arrays.asList(198, 192));
+        return result;
+    }
+
+    /**
+     * 按学历层次（适合柱状图 BAR 或饼图 PIE）。
+     */
+    @GetMapping("/by-degree")
+    @ResponseBody
+    public Map<String, Object> byDegree() {
+        Map<String, Object> result = new HashMap<String, Object>();
+        result.put("labels", Arrays.asList("本科", "硕士", "博士"));
+        result.put("values", Arrays.asList(260, 110, 20));
+        return result;
+    }
+
+    /**
+     * 按就业行业（适合柱状图 BAR 或表格 TABLE）。
+     */
+    @GetMapping("/by-industry")
+    @ResponseBody
+    public Map<String, Object> byIndustry() {
+        Map<String, Object> result = new HashMap<String, Object>();
+        result.put("labels", Arrays.asList(
+                "信息技术", "教育", "金融", "制造业", "医疗卫生", "其他"));
+        result.put("values", Arrays.asList(85, 62, 48, 41, 28, 36));
+        return result;
+    }
+
+    /**
+     * 按就业地区（适合柱状图 BAR 或表格 TABLE）。
+     */
+    @GetMapping("/by-region")
+    @ResponseBody
+    public Map<String, Object> byRegion() {
+        Map<String, Object> result = new HashMap<String, Object>();
+        result.put("labels", Arrays.asList(
+                "湖北", "广东", "北京", "上海", "江苏", "其他"));
+        result.put("values", Arrays.asList(120, 55, 42, 38, 35, 60));
+        return result;
+    }
+
+    /**
+     * 历年就业率（单位：%，适合柱状图 BAR）。
+     */
+    @GetMapping("/employment-rate-by-year")
+    @ResponseBody
+    public Map<String, Object> employmentRateByYear() {
+        Map<String, Object> result = new HashMap<String, Object>();
+        result.put("labels", Arrays.asList("2020", "2021", "2022", "2023", "2024"));
+        result.put("values", Arrays.asList(91.2, 92.5, 93.1, 94.0, 94.6));
         return result;
     }
 }

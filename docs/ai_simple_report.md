@@ -60,13 +60,17 @@
 ### 2. 编排：plan → confirm
 
 ```js
-// plan
+// plan（建议带上当前 blocks，与界面配置一致）
 const plan = await fetch("/simple-report/plan", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ id: 1, userPrompt: "本周概况" })
+  body: JSON.stringify({
+    id: 1,
+    userPrompt: "本周概况",
+    blocks: [/* 当前区块列表 */]
+  })
 }).then((r) => r.json());
-// code === 0 → 展示 plan.planMd，等人确认
+// code === 0 → 展示 plan.planMd，等人确认；plan.blockCount 为本次区块数
 
 // confirm（异步）
 const conf = await fetch("/simple-report/runs/confirm", {
@@ -135,6 +139,11 @@ MAIL_FROM_NAME=MyReport
 |------|------|------|----------|
 | GET | /demo/stat/by-college | 按学院人数；可选 `?year=2024` | BAR |
 | GET | /demo/stat/by-destination | 按去向分布 | TABLE / PIE |
+| GET | /demo/stat/by-gender | 按性别分布 | PIE / TABLE |
+| GET | /demo/stat/by-degree | 按学历层次 | BAR / PIE |
+| GET | /demo/stat/by-industry | 按就业行业 | BAR / TABLE |
+| GET | /demo/stat/by-region | 按就业地区 | BAR / TABLE |
+| GET | /demo/stat/employment-rate-by-year | 历年就业率（%） | BAR |
 
 响应示例：`{ "labels": ["计算机学院", ...], "values": [128, ...] }`
 
@@ -143,4 +152,9 @@ MAIL_FROM_NAME=MyReport
 ```text
 学院人数|GET|http://127.0.0.1:9091/demo/stat/by-college|BAR
 去向分布|GET|http://127.0.0.1:9091/demo/stat/by-destination|TABLE
+性别分布|GET|http://127.0.0.1:9091/demo/stat/by-gender|PIE
+学历层次|GET|http://127.0.0.1:9091/demo/stat/by-degree|BAR
+就业行业|GET|http://127.0.0.1:9091/demo/stat/by-industry|BAR
+就业地区|GET|http://127.0.0.1:9091/demo/stat/by-region|TABLE
+历年就业率|GET|http://127.0.0.1:9091/demo/stat/employment-rate-by-year|BAR
 ```

@@ -291,12 +291,30 @@
 
 ### 4.1 POST `/simple-report/plan`
 
-根据**当前配置**生成 MD 计划，并落库快照；状态直接 `PENDING_CONFIRM`。
+根据配置生成 MD 计划，并落库快照；状态直接 `PENDING_CONFIRM`。  
+若请求体带 `blocks`，会**先整表替换区块**再生成计划（与管理台当前界面原子同步）。
 
 ```json
 {
   "id": 1,
-  "userPrompt": "出一份本周就业概况，突出学院差异"
+  "userPrompt": "出一份本周就业概况，突出学院差异",
+  "name": "周报简化",
+  "deliveryDir": "simple/weekly",
+  "notifyEmail": "yourname@qq.com",
+  "blocks": [
+    {
+      "title": "学院人数",
+      "httpMethod": "GET",
+      "url": "http://127.0.0.1:9091/demo/stat/by-college",
+      "renderStyle": "BAR"
+    },
+    {
+      "title": "去向分布",
+      "httpMethod": "GET",
+      "url": "http://127.0.0.1:9091/demo/stat/by-destination",
+      "renderStyle": "TABLE"
+    }
+  ]
 }
 ```
 
@@ -304,6 +322,8 @@
 |------|------|------|
 | id | 是 | 配置 id |
 | userPrompt | 否 | ≤2000；写入 MD「诉求」节 |
+| blocks | 否 | 传入则整表替换后再出计划；管理台生成计划时应传当前界面区块 |
+| name / deliveryDir / notifyEmail | 否 | 传入则先更新配置元信息 |
 
 **成功：**
 
@@ -313,7 +333,8 @@
   "message": "计划已生成，待确认",
   "runId": 100,
   "runStatus": 1,
-  "planMd": "# 简化报告计划：周报简化\n\n## 诉求\n出一份本周就业概况…\n\n## 1. 学院就业人数\n- 查询目的：按学院统计人数\n- 接口：GET https://data.example.com/api/emp/by-college\n- 渲染：BAR\n- 预期数据：labels/values\n\n## 2. 去向分布\n...\n\n## 交付\n- 目录：simple/weekly\n"
+  "blockCount": 2,
+  "planMd": "# 简化报告计划：周报简化\n\n## 诉求\n…\n\n## 1. 学院人数\n- 标题：学院人数\n- 样式：BAR\n…"
 }
 ```
 

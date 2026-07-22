@@ -187,7 +187,29 @@ public class SimpleReportController {
         try {
             Long id = toLong(body.get("id"));
             String userPrompt = body.get("userPrompt") == null ? null : String.valueOf(body.get("userPrompt"));
-            Map<String, Object> plan = simpleReportService.plan(id, userPrompt, SimpleReportRun.TRIGGER_MANUAL);
+            List<Object> blocksToSync = null;
+            if (body.get("blocks") instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<Object> list = (List<Object>) body.get("blocks");
+                blocksToSync = list;
+            }
+            // 可选：生成计划前同步名称/交付/邮箱
+            if (body.containsKey("name") || body.containsKey("deliveryDir") || body.containsKey("notifyEmail")) {
+                Map<String, Object> meta = new HashMap<String, Object>();
+                meta.put("id", id);
+                if (body.containsKey("name")) {
+                    meta.put("name", body.get("name"));
+                }
+                if (body.containsKey("deliveryDir")) {
+                    meta.put("deliveryDir", body.get("deliveryDir"));
+                }
+                if (body.containsKey("notifyEmail")) {
+                    meta.put("notifyEmail", body.get("notifyEmail"));
+                }
+                simpleReportService.update(meta);
+            }
+            Map<String, Object> plan = simpleReportService.plan(
+                    id, userPrompt, blocksToSync, SimpleReportRun.TRIGGER_MANUAL);
             result.put("code", 0);
             result.put("message", "计划已生成，待确认");
             result.putAll(plan);
