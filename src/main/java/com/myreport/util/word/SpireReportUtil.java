@@ -275,7 +275,7 @@ public class SpireReportUtil {
             addWatermarkImg(doc, strWatermarkImg, overallSetting);
         }
         //添加目录图片
-        addTableOfContentsImage(tocSection, overallSetting, "目录图片");
+        //addTableOfContentsImage(tocSection, overallSetting, "目录图片");
         TableOfContent table = new TableOfContent(doc, "{\\o \"1-3\" \\h \\z \\u}");
         Paragraph paragraph = section.addParagraph();
         paragraph.getStyle().getCharacterFormat().setFontSize(12f);
